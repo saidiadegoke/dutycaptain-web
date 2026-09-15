@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens.
+ *
+ * Tailwind v4 has no JS config — these ARE the theme. Every name is carried
+ * over from the old `tailwind.config.js` unchanged (`canvas`, `panel`, `ink`,
+ * `line`, `brand`, `ok`, `warn`, `danger`, `shell`), which is what let the
+ * migration happen without touching a single class string in the components.
+ *
+ * Fonts come from next/font (see app/layout.tsx) rather than a Google Fonts
+ * @import, so they are self-hosted and do not block first paint.
+ */
+@theme {
+  --color-canvas: #f6f7f9;
+  --color-panel: #ffffff;
+
+  --color-ink-900: #0b1220;
+  --color-ink-800: #1e293b;
+  --color-ink-700: #334155;
+  --color-ink-500: #64748b;
+  --color-ink-400: #94a3b8;
+
+  --color-line: #e4e8ef;
+  --color-line-strong: #cdd4e0;
+
+  --color-brand-50: #eef3ff;
+  --color-brand-100: #dde6fe;
+  --color-brand-200: #c2d2fc;
+  --color-brand-500: #3b6ef0;
+  --color-brand-600: #2456d8;
+  --color-brand-700: #1c44ad;
+  --color-brand-900: #132a63;
+
+  --color-ok-50: #ecfdf5;
+  --color-ok-100: #d1fae5;
+  --color-ok-600: #059669;
+  --color-ok-700: #047857;
+
+  --color-warn-50: #fffbeb;
+  --color-warn-100: #fef3c7;
+  --color-warn-600: #d97706;
+  --color-warn-700: #b45309;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-100: #fee2e2;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  --color-shell: #0b1220;
+  --color-shell-raised: #131c2e;
+  --color-shell-line: #1f2a3f;
+  --color-shell-text: #8fa0bd;
+
+  --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
+
+  --shadow-panel: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --shadow-pop: 0 12px 32px rgba(11, 18, 32, 0.14);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/*
+ * `#root` is gone with Vite — Next renders into <body>. The full-height chain
+ * still has to be declared or the sticky sidebar in AppShell has nothing to
+ * measure against.
+ */
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background-color: #f6f7f9;
+  color: #0b1220;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv05', 'ss01';
+}
+
+*:focus-visible {
+  outline: 2px solid #2456d8;
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
