@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/shell/AppShell';
+import { AuthGate } from '@/components/AuthGate';
 
 /**
  * Layout for the console at `/app/*`. Unlike `(marketing)`, `app` is a real
@@ -8,5 +9,9 @@ import { AppShell } from '@/components/shell/AppShell';
  * across navigations instead of remounting per page.
  */
 export default function ConsoleLayout({ children }: {children: React.ReactNode;}) {
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell>
+      <AuthGate>{children}</AuthGate>
+    </AppShell>);
+
 }

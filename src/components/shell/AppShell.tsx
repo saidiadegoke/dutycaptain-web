@@ -1,6 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth, session } from '@/lib/api';
+import type { SessionUser } from '@/lib/types';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -24,6 +27,21 @@ const nav = [
 { to: '/app/audit', label: 'Audit trail', icon: ScrollTextIcon }];
 
 
+/** Initials for the avatar, falling back to the email when there is no name. */
+function initials(user: SessionUser | null): string {
+  if (!user) return '—';
+  const first = (user.first_name || '').trim();
+  const last = (user.last_name || '').trim();
+  if (first || last) return `${first[0] || ''}${last[0] || ''}`.toUpperCase();
+  return (user.email || '?').slice(0, 2).toUpperCase();
+}
+
+function displayName(user: SessionUser | null): string {
+  if (!user) return 'Signed out';
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
+  return name || user.email || 'Signed in';
+}
+
 const crumbs: Record<string, string> = {
   '/app': 'Overview',
   '/app/tasks': 'Tasks',
@@ -31,11 +49,24 @@ const crumbs: Record<string, string> = {
   '/app/artifacts': 'Artifacts',
   '/app/models': 'Runtime',
   '/app/audit': 'Audit trail',
-  '/app/tasks/new': 'Tasks / New task'
+  '/app/tasks/new': 'Tasks / New task',
+  '/app/signin': 'Sign in'
 };
 
 export function AppShell({ children }: {children: React.ReactNode;}) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  // Read after mount, never during render: `localStorage` does not exist on the
+  // server, and reading it in the render body would make the first client paint
+  // disagree with the server's HTML.
+  useEffect(() => {
+    const sync = () => setUser(session.user());
+    sync();
+    window.addEventListener('dc:session', sync);
+    return () => window.removeEventListener('dc:session', sync);
+  }, []);
 
   /**
    * react-router's NavLink supplied `isActive`; next/link does not, so the
@@ -122,11 +153,17 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
             </button>
             <div className="flex items-center gap-2 border-l border-line pl-3">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900 text-[11px] font-semibold text-white">
-                AB
+                {initials(user)}
               </span>
               <div className="hidden leading-tight sm:block">
-                <p className="text-[12px] font-medium text-ink-900">A. Bello</p>
-                <p className="text-[11px] text-ink-500">Operations lead</p>
+                <p className="text-[12px] font-medium text-ink-900">{displayName(user)}</p>
+                <button
+                  type="button"
+                  onClick={() => { auth.signOut(); router.replace('/app/signin'); }}
+                  className="text-[11px] text-ink-500 underline-offset-2 hover:text-ink-900 hover:underline">
+                  
+                  Sign out
+                </button>
               </div>
             </div>
           </div>
