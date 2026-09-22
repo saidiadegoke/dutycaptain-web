@@ -1,0 +1,32 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Inlined into the client bundle at build time — change this and
+        # rebuild (`docker compose build`) for it to take effect.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        PORT: ${PORT:-9821}
+    container_name: dutycaptain-web
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-9821}
+      HOSTNAME: ${HOSTNAME:-0.0.0.0}
+      # Also needed at RUNTIME, not just as a build arg. The build-time value is
+      # compiled into the client bundle, but a server component reads this env
+      # var when it fetches — and the runner stage does not inherit the
+      # builder's ENV. Every page here is a client component today, so nothing
+      # would break without it; it is set because the first server component
+      # added would fail silently, falling back to a localhost that inside the
+      # container is the container itself.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    ports:
+      - "${PORT:-9821}:${PORT:-9821}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${PORT:-9821}/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
