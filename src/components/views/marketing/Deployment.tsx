@@ -10,7 +10,7 @@ Services: vLLM, Playwright,
 
 const swapSequence = [
 'Default loaded: Qwen3-14B + Qwen2.5-VL-7B',
-'A large planning job arrives',
+'A large planning task arrives',
 'Unload Qwen3-14B, load Qwen3-32B',
 'Run planning, then unload again',
 'Reload Qwen3-14B for execution'];
@@ -22,7 +22,7 @@ export function Deployment() {
       <PageHeader
         eyebrow="Deployment"
         title="One GPU is enough to start"
-        lede="The MVP runs on a single A40 at roughly $0.49 an hour. Browser workers are CPU-bound, so the GPU only serves the agent and vision models — and you add capacity when a job actually demands it." />
+        lede="The MVP runs on a single A40 at roughly $0.49 an hour. Browser workers are CPU-bound, so the GPU only serves the agent and vision models — and you add capacity when a task actually demands it." />
       
 
       <Section tone="light">
@@ -58,7 +58,7 @@ export function Deployment() {
               )}
             </dl>
             <p className="mt-4 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-500">
-              Because inference is self-hosted, a job that makes thousands of model calls costs the
+              Because inference is self-hosted, a task that makes thousands of model calls costs the
               same as one that makes ten.
             </p>
           </aside>
@@ -124,7 +124,7 @@ export function Deployment() {
               )}
             </ol>
             <p className="mt-5 text-[13px] leading-relaxed text-ink-500">
-              Planning jobs are infrequent compared with execution jobs, which is what makes the
+              Planning tasks are infrequent compared with execution tasks, which is what makes the
               swap cheap.
             </p>
           </div>
@@ -192,7 +192,7 @@ export function Deployment() {
       </Section>
 
       <CTABand
-        title="We will size it against your first job"
+        title="We will size it against your first task"
         body="Tell us the volume and the sites involved and we will tell you exactly what hardware the pilot needs."
         primary={{ to: '/company', label: 'Get a sizing' }}
         secondary={{ to: '/pricing', label: 'See pricing' }} />

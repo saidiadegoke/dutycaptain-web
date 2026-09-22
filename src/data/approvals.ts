@@ -3,8 +3,8 @@ import { Approval } from '@/types';
 export const approvals: Approval[] = [
 {
   id: 'apr_1187',
-  jobId: 'job_8412',
-  jobName: 'SmartStore price sync — Samsung phones',
+  taskId: 'task_8412',
+  taskName: 'SmartStore price sync — Samsung phones',
   action: 'Overwrite product prices',
   target: 'SmartStore · 3,487 products',
   changes: 3487,
@@ -26,8 +26,8 @@ export const approvals: Approval[] = [
 },
 {
   id: 'apr_1186',
-  jobId: 'job_8409',
-  jobName: 'Daily fuel price — NNPC Lagos',
+  taskId: 'task_8409',
+  taskName: 'Daily fuel price — NNPC Lagos',
   action: 'Publish to shared sheet',
   target: 'Ops Sheet · Fuel/Lagos!B12',
   changes: 1,
@@ -42,8 +42,8 @@ export const approvals: Approval[] = [
 },
 {
   id: 'apr_1184',
-  jobId: 'job_8398',
-  jobName: 'Courier rate audit — 4 partners',
+  taskId: 'task_8398',
+  taskName: 'Courier rate audit — 4 partners',
   action: 'Email rate-increase notice',
   target: 'ops@company.com · 3 recipients',
   changes: 1,

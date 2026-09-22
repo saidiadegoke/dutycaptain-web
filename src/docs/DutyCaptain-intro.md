@@ -2,15 +2,15 @@ Yes. If everything is self-hosted, I would design this as an AI Agent Operating 
 
 The core design principle is:
 
-> Use the smallest capable open-source model for each task, not one giant model.
+> Use the smallest capable open-source model for each step, not one giant model.
 
-A 3,500-product job may execute thousands of AI calls. Using a 32B model for every step would be unnecessarily expensive even on your own GPUs.
+A 3,500-product task may execute thousands of AI calls. Using a 32B model for every step would be unnecessarily expensive even on your own GPUs.
 
 # Product architecture
 
 ## Vision
 
-TaskPilot OS — Autonomous business agents that can:
+StepPilot OS — Autonomous business agents that can:
 
 * Browse websites with Playwright
 
@@ -38,7 +38,7 @@ The system plans and executes the workflow.
 
 ![](data\:image/svg+xml;charset=utf-8,%3Csvg%20font-family%3D%22-apple-system-body%2C%20ui-sans-serif%2C%20-apple-system%2C%20system-ui%2C%20%26quot%3BSegoe%20UI%26quot%3B%2C%20Helvetica%2C%20%26quot%3BApple%20Color%20Emoji%26quot%3B%2C%20Arial%2C%20sans-serif%2C%20%26quot%3BSegoe%20UI%20Emoji%26quot%3B%2C%20%26quot%3BSegoe%20UI%20Symbol%26quot%3B%22%20font-weight%3D%22400%22%20data-d-component%3D%22svg%22%20fill%3D%22currentColor%22%20style%3D%22color%3Argb\(255%2C%20255%2C%20255\)%22%20viewBox%3D%220%200%20340%20220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22340%22%20height%3D%22220%22%20rx%3D%2216%22%20fill%3D%22%23F8FAFC%22%2F%3E%3Crect%20x%3D%2278%22%20y%3D%2210%22%20width%3D%22184%22%20height%3D%2226%22%20rx%3D%228%22%20fill%3D%22%23DBEAFE%22%20stroke%3D%22%232563EB%22%2F%3E%3Ctext%20x%3D%22170%22%20y%3D%2227%22%20font-size%3D%2210%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%231D4ED8%22%3EUser%20Goal%3C%2Ftext%3E%3Cpath%20d%3D%22M170%2036%20V48%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2248%22%20width%3D%22200%22%20height%3D%2228%22%20rx%3D%228%22%20fill%3D%22%23D1FAE5%22%20stroke%3D%22%23059669%22%2F%3E%3Ctext%20x%3D%22170%22%20y%3D%2266%22%20font-size%3D%2210%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EPlanner%20LLM%3C%2Ftext%3E%3Cpath%20d%3D%22M170%2076%20V88%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2260%22%20y%3D%2288%22%20width%3D%22220%22%20height%3D%2226%22%20rx%3D%228%22%20fill%3D%22%23F3E8FF%22%20stroke%3D%22%237C3AED%22%2F%3E%3Ctext%20x%3D%22170%22%20y%3D%22105%22%20font-size%3D%2210%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%235B21B6%22%3EWorkflow%20Engine%3C%2Ftext%3E%3Cpath%20d%3D%22M170%20114%20V122%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%22122%22%20width%3D%2272%22%20height%3D%2236%22%20rx%3D%228%22%20fill%3D%22%23FDE68A%22%20stroke%3D%22%23B45309%22%2F%3E%3Ctext%20x%3D%2244%22%20y%3D%22137%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%2392400E%22%3EBrowser%3C%2Ftext%3E%3Ctext%20x%3D%2244%22%20y%3D%22147%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%2392400E%22%3EAgent%3C%2Ftext%3E%3Crect%20x%3D%2288%22%20y%3D%22122%22%20width%3D%2272%22%20height%3D%2236%22%20rx%3D%228%22%20fill%3D%22%23FCA5A5%22%20stroke%3D%22%23DC2626%22%2F%3E%3Ctext%20x%3D%22124%22%20y%3D%22137%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3ESearch%3C%2Ftext%3E%3Ctext%20x%3D%22124%22%20y%3D%22147%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3EAgent%3C%2Ftext%3E%3Crect%20x%3D%22168%22%20y%3D%22122%22%20width%3D%2272%22%20height%3D%2236%22%20rx%3D%228%22%20fill%3D%22%23BFDBFE%22%20stroke%3D%22%232563EB%22%2F%3E%3Ctext%20x%3D%22204%22%20y%3D%22137%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%231D4ED8%22%3EFile%3C%2Ftext%3E%3Ctext%20x%3D%22204%22%20y%3D%22147%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%231D4ED8%22%3EAgent%3C%2Ftext%3E%3Crect%20x%3D%22248%22%20y%3D%22122%22%20width%3D%2284%22%20height%3D%2236%22%20rx%3D%228%22%20fill%3D%22%23D1FAE5%22%20stroke%3D%22%23059669%22%2F%3E%3Ctext%20x%3D%22290%22%20y%3D%22137%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EAPI%3C%2Ftext%3E%3Ctext%20x%3D%22290%22%20y%3D%22147%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EAgent%3C%2Ftext%3E%3Cpath%20d%3D%22M170%20158%20V170%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2240%22%20y%3D%22170%22%20width%3D%22260%22%20height%3D%2218%22%20rx%3D%226%22%20fill%3D%22%23E5E7EB%22%20stroke%3D%22%236B7280%22%2F%3E%3Ctext%20x%3D%22170%22%20y%3D%22182%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23374151%22%3EMemory%20%E2%80%A2%20Vector%20DB%20%E2%80%A2%20Audit%3C%2Ftext%3E%3Cpath%20d%3D%22M170%20188%20V196%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%22196%22%20width%3D%22200%22%20height%3D%2214%22%20rx%3D%226%22%20fill%3D%22%23111827%22%2F%3E%3Ctext%20x%3D%22170%22%20y%3D%22206%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23FFFFFF%22%3EReports%20%C2%B7%20CSV%20%C2%B7%20Dashboard%20Updates%3C%2Ftext%3E%3C%2Fsvg%3E)
 
-The Planner never directly controls the browser. It issues tasks to execution agents.
+The Planner never directly controls the browser. It issues steps to execution agents.
 
 # Model selection (all open source)
 
@@ -176,30 +176,30 @@ Input:
 
 > Find prices for 3,500 products and update SmartStore.
 
-Output is not prose. It outputs structured tasks.
+Output is not prose. It outputs structured steps.
 
 JSON
 
 ```
 [
   {
-    "task": "load_catalog"
+    "step": "load_catalog"
   },
   {
-    "task": "search_product",
+    "step": "search_product",
     "parallel": true
   },
   {
-    "task": "extract_price"
+    "step": "extract_price"
   },
   {
-    "task": "validate"
+    "step": "validate"
   },
   {
-    "task": "generate_excel"
+    "step": "generate_excel"
   },
   {
-    "task": "update_dashboard"
+    "step": "update_dashboard"
   }
 ]
 ```
@@ -306,7 +306,7 @@ TypeScript
 }
 ```
 
-This lets thousands of tasks run simultaneously.
+This lets thousands of steps run simultaneously.
 
 # Parallel execution
 
@@ -345,7 +345,7 @@ Purpose
 | --- | --- |
 |
 
-jobs
+tasks
 
 |
 
@@ -354,7 +354,7 @@ User requests
 |
 |
 
-tasks
+steps
 
 |
 
@@ -363,7 +363,7 @@ Individual actions
 |
 |
 
-task_outputs
+step_outputs
 
 |
 
@@ -492,7 +492,7 @@ Output is always structured JSON first.
 
 Critical business actions require approval.
 
-![](data\:image/svg+xml;charset=utf-8,%3Csvg%20font-family%3D%22-apple-system-body%2C%20ui-sans-serif%2C%20-apple-system%2C%20system-ui%2C%20%26quot%3BSegoe%20UI%26quot%3B%2C%20Helvetica%2C%20%26quot%3BApple%20Color%20Emoji%26quot%3B%2C%20Arial%2C%20sans-serif%2C%20%26quot%3BSegoe%20UI%20Emoji%26quot%3B%2C%20%26quot%3BSegoe%20UI%20Symbol%26quot%3B%22%20font-weight%3D%22400%22%20data-d-component%3D%22svg%22%20fill%3D%22currentColor%22%20style%3D%22color%3Argb\(255%2C%20255%2C%20255\)%22%20viewBox%3D%220%200%20260%20220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22260%22%20height%3D%22220%22%20rx%3D%2212%22%20fill%3D%22%23FFFFFF%22%20stroke%3D%22%23E5E7EB%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2212%22%20width%3D%22120%22%20height%3D%2228%22%20rx%3D%228%22%20fill%3D%22%23DBEAFE%22%20stroke%3D%22%232563EB%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%2229%22%20font-size%3D%229%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%231D4ED8%22%3EExecute%20Task%3C%2Ftext%3E%3Cpath%20d%3D%22M130%2040%20V52%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpolygon%20points%3D%22130%2C52%20170%2C82%20130%2C112%2090%2C82%22%20fill%3D%22%23FDE68A%22%20stroke%3D%22%23B45309%22%20stroke-width%3D%221.5%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%2278%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%2392400E%22%3EDestructive%3F%3C%2Ftext%3E%3Ctext%20x%3D%22176%22%20y%3D%2266%22%20font-size%3D%227%22%20font-family%3D%22Arial%22%20fill%3D%22%23047857%22%3ENo%3C%2Ftext%3E%3Cpath%20d%3D%22M170%2082%20H208%22%20stroke%3D%22%23059669%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%2268%22%20width%3D%2240%22%20height%3D%2228%22%20rx%3D%226%22%20fill%3D%22%23D1FAE5%22%20stroke%3D%22%23059669%22%2F%3E%3Ctext%20x%3D%22228%22%20y%3D%2280%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EAuto%3C%2Ftext%3E%3Ctext%20x%3D%22228%22%20y%3D%2288%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EGo%3C%2Ftext%3E%3Ctext%20x%3D%2284%22%20y%3D%22122%22%20font-size%3D%227%22%20font-family%3D%22Arial%22%20fill%3D%22%23B45309%22%3EYes%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20112%20V132%22%20stroke%3D%22%23B45309%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2258%22%20y%3D%22132%22%20width%3D%22144%22%20height%3D%2230%22%20rx%3D%228%22%20fill%3D%22%23FCA5A5%22%20stroke%3D%22%23DC2626%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22145%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3EReview%20Required%3C%2Ftext%3E%3Ctext%20x%3D%22130%22%20y%3D%22154%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3E3%2C487%20changes%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20162%20V176%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2288%22%20y%3D%22176%22%20width%3D%2284%22%20height%3D%2226%22%20rx%3D%228%22%20fill%3D%22%23111827%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22193%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23FFFFFF%22%3EApprove%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20202%20V210%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22217%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23374151%22%3EContinue%3C%2Ftext%3E%3C%2Fsvg%3E)
+![](data\:image/svg+xml;charset=utf-8,%3Csvg%20font-family%3D%22-apple-system-body%2C%20ui-sans-serif%2C%20-apple-system%2C%20system-ui%2C%20%26quot%3BSegoe%20UI%26quot%3B%2C%20Helvetica%2C%20%26quot%3BApple%20Color%20Emoji%26quot%3B%2C%20Arial%2C%20sans-serif%2C%20%26quot%3BSegoe%20UI%20Emoji%26quot%3B%2C%20%26quot%3BSegoe%20UI%20Symbol%26quot%3B%22%20font-weight%3D%22400%22%20data-d-component%3D%22svg%22%20fill%3D%22currentColor%22%20style%3D%22color%3Argb\(255%2C%20255%2C%20255\)%22%20viewBox%3D%220%200%20260%20220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20width%3D%22260%22%20height%3D%22220%22%20rx%3D%2212%22%20fill%3D%22%23FFFFFF%22%20stroke%3D%22%23E5E7EB%22%2F%3E%3Crect%20x%3D%2270%22%20y%3D%2212%22%20width%3D%22120%22%20height%3D%2228%22%20rx%3D%228%22%20fill%3D%22%23DBEAFE%22%20stroke%3D%22%232563EB%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%2229%22%20font-size%3D%229%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%231D4ED8%22%3EExecute%20Step%3C%2Ftext%3E%3Cpath%20d%3D%22M130%2040%20V52%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpolygon%20points%3D%22130%2C52%20170%2C82%20130%2C112%2090%2C82%22%20fill%3D%22%23FDE68A%22%20stroke%3D%22%23B45309%22%20stroke-width%3D%221.5%22%20stroke-linejoin%3D%22round%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%2278%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%2392400E%22%3EDestructive%3F%3C%2Ftext%3E%3Ctext%20x%3D%22176%22%20y%3D%2266%22%20font-size%3D%227%22%20font-family%3D%22Arial%22%20fill%3D%22%23047857%22%3ENo%3C%2Ftext%3E%3Cpath%20d%3D%22M170%2082%20H208%22%20stroke%3D%22%23059669%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%22208%22%20y%3D%2268%22%20width%3D%2240%22%20height%3D%2228%22%20rx%3D%226%22%20fill%3D%22%23D1FAE5%22%20stroke%3D%22%23059669%22%2F%3E%3Ctext%20x%3D%22228%22%20y%3D%2280%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EAuto%3C%2Ftext%3E%3Ctext%20x%3D%22228%22%20y%3D%2288%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23065F46%22%3EGo%3C%2Ftext%3E%3Ctext%20x%3D%2284%22%20y%3D%22122%22%20font-size%3D%227%22%20font-family%3D%22Arial%22%20fill%3D%22%23B45309%22%3EYes%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20112%20V132%22%20stroke%3D%22%23B45309%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2258%22%20y%3D%22132%22%20width%3D%22144%22%20height%3D%2230%22%20rx%3D%228%22%20fill%3D%22%23FCA5A5%22%20stroke%3D%22%23DC2626%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22145%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3EReview%20Required%3C%2Ftext%3E%3Ctext%20x%3D%22130%22%20y%3D%22154%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23991B1B%22%3E3%2C487%20changes%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20162%20V176%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Crect%20x%3D%2288%22%20y%3D%22176%22%20width%3D%2284%22%20height%3D%2226%22%20rx%3D%228%22%20fill%3D%22%23111827%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22193%22%20font-size%3D%228%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23FFFFFF%22%3EApprove%3C%2Ftext%3E%3Cpath%20d%3D%22M130%20202%20V210%22%20stroke%3D%22%2364748B%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%2F%3E%3Ctext%20x%3D%22130%22%20y%3D%22217%22%20font-size%3D%227%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%22%20fill%3D%22%23374151%22%3EContinue%3C%2Ftext%3E%3C%2Fsvg%3E)
 
 Examples requiring approval:
 
@@ -680,14 +680,14 @@ Expose the platform as code.
 TypeScript
 
 ```
-const job = await agent.create({
+const task = await agent.create({
   goal: "Update SmartStore prices",
   input: "products.csv"
 })
 
-await job.run()
+await task.run()
 
-console.log(job.artifacts)
+console.log(task.artifacts)
 ```
 
 Or YAML workflows:
@@ -725,7 +725,7 @@ The moat is the execution runtime:
 
 * Vision-guided browser automation
 
-* Distributed task scheduler
+* Distributed step scheduler
 
 * Retry & recovery engine
 
@@ -829,7 +829,7 @@ Qwen3-14B
 Qwen2.5-VL-7B
 ```
 
-When a big planning job arrives:
+When a big planning task arrives:
 
 ```text
 Unload Qwen3-14B
@@ -839,7 +839,7 @@ Unload Qwen3-32B
 Reload Qwen3-14B
 ```
 
-Planning jobs are infrequent compared to execution jobs.
+Planning tasks are infrequent compared to execution tasks.
 
 ---
 
@@ -978,4 +978,4 @@ At that price:
 ≈ $353/month
 ```
 
-For development, you can start/stop the pod and likely spend **well under $100/month** while building. The browser workers themselves are mostly CPU-bound, so the A40's main job is serving the agent and vision models.
+For development, you can start/stop the pod and likely spend **well under $100/month** while building. The browser workers themselves are mostly CPU-bound, so the A40's main task is serving the agent and vision models.

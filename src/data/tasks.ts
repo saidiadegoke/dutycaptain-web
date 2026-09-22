@@ -1,8 +1,8 @@
-import { Job } from '@/types';
+import { Task } from '@/types';
 
-export const jobs: Job[] = [
+export const tasks: Task[] = [
 {
-  id: 'job_8412',
+  id: 'task_8412',
   name: 'SmartStore price sync — Samsung phones',
   goal: 'Compare prices of all Samsung phones across Jumia, Konga, Slot and Pointek. Update SmartStore and generate an Excel audit.',
   status: 'running',
@@ -17,7 +17,7 @@ export const jobs: Job[] = [
   connector: 'SmartStore'
 },
 {
-  id: 'job_8409',
+  id: 'task_8409',
   name: 'Daily fuel price — NNPC Lagos',
   goal: 'Read the official NNPC price board and publish today’s pump price to the ops sheet.',
   status: 'awaiting_approval',
@@ -32,7 +32,7 @@ export const jobs: Job[] = [
   connector: 'Google Sheets'
 },
 {
-  id: 'job_8402',
+  id: 'task_8402',
   name: 'Supplier invoice extraction — March batch',
   goal: 'Read 148 scanned supplier invoices and produce a reconciled payables JSON.',
   status: 'completed',
@@ -47,7 +47,7 @@ export const jobs: Job[] = [
   connector: 'Files'
 },
 {
-  id: 'job_8398',
+  id: 'task_8398',
   name: 'Courier rate audit — 4 partners',
   goal: 'Collect zone-by-zone courier rates and flag any increase above 5%.',
   status: 'paused',
@@ -62,7 +62,7 @@ export const jobs: Job[] = [
   connector: 'Courier APIs'
 },
 {
-  id: 'job_8391',
+  id: 'task_8391',
   name: 'Competitor catalogue crawl — Konga TVs',
   goal: 'Build a structured catalogue of all Konga television listings with stock status.',
   status: 'failed',
@@ -77,7 +77,7 @@ export const jobs: Job[] = [
   connector: 'Postgres'
 },
 {
-  id: 'job_8388',
+  id: 'task_8388',
   name: 'Publish 42 new SKUs to SmartStore',
   goal: 'Create product pages for the 42 approved SKUs in the onboarding sheet.',
   status: 'queued',
@@ -93,4 +93,4 @@ export const jobs: Job[] = [
 }];
 
 
-export const activeJobId = 'job_8412';
+export const activeTaskId = 'task_8412';

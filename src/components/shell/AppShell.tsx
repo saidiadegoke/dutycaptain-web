@@ -17,7 +17,7 @@ import {
 
 const nav = [
 { to: '/app', label: 'Overview', icon: GaugeIcon, end: true },
-{ to: '/app/jobs', label: 'Jobs', icon: ListChecksIcon },
+{ to: '/app/tasks', label: 'Tasks', icon: ListChecksIcon },
 { to: '/app/approvals', label: 'Approvals', icon: ShieldCheckIcon, badge: 3 },
 { to: '/app/artifacts', label: 'Artifacts', icon: FileBoxIcon },
 { to: '/app/models', label: 'Runtime', icon: CpuIcon },
@@ -26,12 +26,12 @@ const nav = [
 
 const crumbs: Record<string, string> = {
   '/app': 'Overview',
-  '/app/jobs': 'Jobs',
+  '/app/tasks': 'Tasks',
   '/app/approvals': 'Approvals',
   '/app/artifacts': 'Artifacts',
   '/app/models': 'Runtime',
   '/app/audit': 'Audit trail',
-  '/app/jobs/new': 'Jobs / New job'
+  '/app/tasks/new': 'Tasks / New task'
 };
 
 export function AppShell({ children }: {children: React.ReactNode;}) {
@@ -45,7 +45,7 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
   const isActive = (item: {to: string;end?: boolean;}) =>
   item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
   const crumb =
-  crumbs[pathname] ?? (pathname.startsWith('/app/jobs/') ? 'Jobs / Detail' : 'Overview');
+  crumbs[pathname] ?? (pathname.startsWith('/app/tasks/') ? 'Tasks / Detail' : 'Overview');
 
   return (
     <div className="flex min-h-full w-full bg-canvas font-sans">
@@ -60,11 +60,11 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
         </Link>
 
         <div className="px-3 pb-3">
-          <Link href="/app/jobs/new"
+          <Link href="/app/tasks/new"
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500">
             
             <PlusIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
-            New job
+            New task
           </Link>
         </div>
 

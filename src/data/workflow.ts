@@ -1,4 +1,4 @@
-import { TaskRun, Worker, WorkflowStage } from '@/types';
+import { StepRun, Worker, WorkflowStage } from '@/types';
 
 export const workflow: WorkflowStage[] = [
 {
@@ -105,7 +105,7 @@ export const workflow: WorkflowStage[] = [
 }];
 
 
-export const taskRuns: TaskRun[] = [
+export const stepRuns: StepRun[] = [
 {
   id: 'tsk_92f1',
   node: 'extract_price',
@@ -196,7 +196,7 @@ export const workers: Worker[] = [
 { id: 'W05', browser: 'chromium', status: 'busy', sku: 'SM-S921B', retailer: 'Jumia', step: 'extract' },
 { id: 'W06', browser: 'chromium', status: 'busy', sku: 'SM-X216B', retailer: 'Konga', step: 'navigate' },
 { id: 'W07', browser: 'webkit', status: 'busy', sku: 'SM-A155F', retailer: 'Slot', step: 'screenshot' },
-{ id: 'W08', browser: 'chromium', status: 'idle', sku: '—', retailer: '—', step: 'awaiting task' },
+{ id: 'W08', browser: 'chromium', status: 'idle', sku: '—', retailer: '—', step: 'awaiting step' },
 { id: 'W09', browser: 'chromium', status: 'busy', sku: 'SM-S918B', retailer: 'Pointek', step: 'extract' },
 { id: 'W10', browser: 'chromium', status: 'busy', sku: 'SM-A245F', retailer: 'Jumia', step: 'navigate' },
 { id: 'W11', browser: 'firefox', status: 'busy', sku: 'SM-M155F', retailer: 'Konga', step: 'screenshot' },
@@ -205,7 +205,7 @@ export const workers: Worker[] = [
 { id: 'W14', browser: 'chromium', status: 'busy', sku: 'SM-A057F', retailer: 'Jumia', step: 'navigate' },
 { id: 'W15', browser: 'webkit', status: 'busy', sku: 'SM-X115', retailer: 'Konga', step: 'screenshot' },
 { id: 'W16', browser: 'chromium', status: 'busy', sku: 'SM-A165F', retailer: 'Slot', step: 'extract' },
-{ id: 'W17', browser: 'chromium', status: 'idle', sku: '—', retailer: '—', step: 'awaiting task' },
+{ id: 'W17', browser: 'chromium', status: 'idle', sku: '—', retailer: '—', step: 'awaiting step' },
 { id: 'W18', browser: 'chromium', status: 'busy', sku: 'SM-S926B', retailer: 'Jumia', step: 'navigate' },
 { id: 'W19', browser: 'chromium', status: 'busy', sku: 'SM-A366B', retailer: 'Konga', step: 'extract' },
 { id: 'W20', browser: 'chromium', status: 'busy', sku: 'SM-F946B', retailer: 'Pointek', step: 'screenshot' }];

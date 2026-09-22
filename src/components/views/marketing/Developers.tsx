@@ -6,16 +6,16 @@ import { CTABand } from '@/components/marketing/CTABand';
 
 const sdkSample = `import { agent } from "@dutycaptain/sdk"
 
-const job = await agent.create({
+const task = await agent.create({
   goal: "Update SmartStore prices",
   input: "products.csv",
   approvals: ["write"],
   workers: 20
 })
 
-await job.run()
+await task.run()
 
-console.log(job.artifacts)
+console.log(task.artifacts)
 // → ["samsung-price-audit-2026-09-11.xlsx"]`;
 
 const yamlSample = `name: Daily Fuel Price
@@ -38,24 +38,24 @@ browser.screenshot()
 browser.download()`;
 
 const plannerOutput = `[
-  { "task": "load_catalog" },
-  { "task": "search_product", "parallel": true },
-  { "task": "extract_price" },
-  { "task": "validate" },
-  { "task": "generate_excel" },
-  { "task": "update_dashboard" }
+  { "step": "load_catalog" },
+  { "step": "search_product", "parallel": true },
+  { "step": "extract_price" },
+  { "step": "validate" },
+  { "step": "generate_excel" },
+  { "step": "update_dashboard" }
 ]`;
 
 const surfaces = [
 {
   name: 'REST API',
-  detail: 'Create jobs, stream task events, fetch artifacts and approve pending actions.',
-  endpoint: 'POST /v1/jobs'
+  detail: 'Create tasks, stream step events, fetch artifacts and approve pending actions.',
+  endpoint: 'POST /v1/tasks'
 },
 {
   name: 'Webhooks',
-  detail: 'Job state changes, approval requests and artifact writes pushed to your endpoint.',
-  endpoint: 'job.awaiting_approval'
+  detail: 'Task state changes, approval requests and artifact writes pushed to your endpoint.',
+  endpoint: 'task.awaiting_approval'
 },
 {
   name: 'Tool registry',
@@ -112,7 +112,7 @@ export function Developers() {
 
             <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-ink-700">
               {tab === 'sdk' ?
-              'Jobs are first-class objects. Await completion, subscribe to task events, or hand the job id to your own dashboard and poll it.' :
+              'Tasks are first-class objects. Await completion, subscribe to step events, or hand the task id to your own dashboard and poll it.' :
               'Declarative workflows are versioned in your repo and run on a schedule. The planner can generate a first draft from a sentence, which you then review and commit.'}
             </p>
           </div>
@@ -132,7 +132,7 @@ export function Developers() {
             <div className="rounded-xl border border-line bg-panel p-5 shadow-panel">
               <h3 className="text-[13px] font-semibold text-ink-900">Planner output</h3>
               <p className="mt-1.5 text-[12px] leading-relaxed text-ink-500">
-                Not prose — structured tasks that become the execution graph.
+                Not prose — structured steps that become the execution graph.
               </p>
               <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-canvas px-3 py-3 font-mono text-[11px] leading-relaxed text-ink-800">
                 {plannerOutput}
@@ -164,7 +164,7 @@ export function Developers() {
       <Section tone="light">
         <SectionHeading
           title="Failure handling you do not have to write"
-          lede="Long jobs fail in the middle. The runtime assumes it and recovers per node rather than per job." />
+          lede="Long tasks fail in the middle. The runtime assumes it and recovers per node rather than per task." />
         
         <div className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2">
           {[
@@ -174,7 +174,7 @@ export function Developers() {
           },
           {
             t: 'Resume from the graph',
-            b: 'Restarting a job continues from completed nodes using stored task outputs.'
+            b: 'Restarting a task continues from completed nodes using stored step outputs.'
           },
           {
             t: 'Session persistence',
@@ -195,7 +195,7 @@ export function Developers() {
 
       <CTABand
         title="Get the SDK and a sandbox cluster"
-        body="We will set up a pod with the MVP model stack so you can run a real job the same day."
+        body="We will set up a pod with the MVP model stack so you can run a real task the same day."
         primary={{ to: '/company', label: 'Request access' }}
         secondary={{ to: '/platform', label: 'Read the architecture' }} />
       

@@ -24,7 +24,7 @@ export function Artifacts() {
       <div>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Artifacts</h1>
         <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
-          Every file an agent produced, traced back to the job that created it.
+          Every file an agent produced, traced back to the task that created it.
         </p>
       </div>
 
@@ -41,7 +41,7 @@ export function Artifacts() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-[12px] font-medium text-ink-900">{a.name}</p>
-                <p className="mt-0.5 truncate text-[12px] text-ink-500">{a.jobName}</p>
+                <p className="mt-0.5 truncate text-[12px] text-ink-500">{a.taskName}</p>
               </div>
               <div className="hidden w-[150px] shrink-0 sm:block">
                 <p className="tabular text-[12px] text-ink-700">

@@ -15,7 +15,7 @@ export function Pricing() {
       <PageHeader
         eyebrow="Pricing"
         title="A platform licence, plus the compute you already own"
-        lede="No per-token billing and no per-bot licences. A job that makes ten thousand model calls costs the same as one that makes ten, because inference runs on your hardware." />
+        lede="No per-token billing and no per-bot licences. A task that makes ten thousand model calls costs the same as one that makes ten, because inference runs on your hardware." />
       
 
       <Section tone="light">
@@ -150,7 +150,7 @@ export function Pricing() {
 
       <CTABand
         title="Pilots start with one workflow, on your hardware"
-        body="Thirty days, one job, the full approval and audit model. If it does not pay for itself we will tell you." />
+        body="Thirty days, one task, the full approval and audit model. If it does not pay for itself we will tell you." />
       
     </>);
 

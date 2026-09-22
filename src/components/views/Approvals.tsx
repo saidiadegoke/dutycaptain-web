@@ -92,7 +92,7 @@ export function Approvals() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="font-mono text-[11px] text-ink-400">
-                  {selected.id} · {selected.jobId}
+                  {selected.id} · {selected.taskId}
                 </p>
                 <h2 className="mt-1.5 text-[18px] font-semibold tracking-tight text-ink-900">
                   {selected.action}
@@ -133,7 +133,7 @@ export function Approvals() {
               
                 {decision === 'approved' ?
               'Approved. The graph resumed at “Update SmartStore” and the decision was written to the audit trail.' :
-              'Rejected. The job is held and the planner was asked for an alternative branch.'}
+              'Rejected. The task is held and the planner was asked for an alternative branch.'}
               </div>
             }
 

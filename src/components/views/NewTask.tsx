@@ -23,7 +23,7 @@ const examples = [
 const connectors = ['SmartStore', 'Google Sheets', 'Postgres', 'Courier APIs', 'Files only'];
 
 interface PlanStep {
-  task: string;
+  step: string;
   agent: AgentKind;
   note: string;
   parallel?: boolean;
@@ -31,16 +31,16 @@ interface PlanStep {
 }
 
 const plan: PlanStep[] = [
-{ task: 'load_catalog', agent: 'file', note: 'Parse the attached CSV into 3,500 SKU records' },
-{ task: 'search_product', agent: 'search', note: 'Rank retailer URLs per SKU, keep top 3', parallel: true },
-{ task: 'extract_price', agent: 'vision', note: 'Screenshot each page, read price and stock', parallel: true },
-{ task: 'validate', agent: 'planner', note: 'Re-verify any price moving more than 15%' },
-{ task: 'generate_excel', agent: 'file', note: 'Build the audit workbook with source columns' },
-{ task: 'approve', agent: 'human', note: 'Price overwrite is destructive — pause here', approval: true },
-{ task: 'update_dashboard', agent: 'api', note: 'Write in batches of 250 with snapshot kept' }];
+{ step: 'load_catalog', agent: 'file', note: 'Parse the attached CSV into 3,500 SKU records' },
+{ step: 'search_product', agent: 'search', note: 'Rank retailer URLs per SKU, keep top 3', parallel: true },
+{ step: 'extract_price', agent: 'vision', note: 'Screenshot each page, read price and stock', parallel: true },
+{ step: 'validate', agent: 'planner', note: 'Re-verify any price moving more than 15%' },
+{ step: 'generate_excel', agent: 'file', note: 'Build the audit workbook with source columns' },
+{ step: 'approve', agent: 'human', note: 'Price overwrite is destructive — pause here', approval: true },
+{ step: 'update_dashboard', agent: 'api', note: 'Write in batches of 250 with snapshot kept' }];
 
 
-export function NewJob() {
+export function NewTask() {
   const [goal, setGoal] = useState(examples[0]);
   const [connector, setConnector] = useState(connectors[0]);
   const [workers, setWorkers] = useState(20);
@@ -54,14 +54,14 @@ export function NewJob() {
 
   return (
     <div className="mx-auto max-w-[1200px]">
-      <Link href="/app/jobs"
+      <Link href="/app/tasks"
         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink-500 transition-colors duration-150 ease-out hover:text-ink-900">
         
         <ArrowLeftIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
-        Jobs
+        Tasks
       </Link>
 
-      <h1 className="mt-3 text-[22px] font-semibold tracking-tight text-ink-900">New job</h1>
+      <h1 className="mt-3 text-[22px] font-semibold tracking-tight text-ink-900">New task</h1>
       <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
         Describe the outcome in plain English. The planner turns it into an execution graph you can
         review before anything runs.
@@ -71,7 +71,7 @@ export function NewJob() {
         <div className="space-y-5">
           <Panel title="Goal">
             <label htmlFor="goal" className="sr-only">
-              Job goal
+              Task goal
             </label>
             <textarea
               id="goal"
@@ -140,7 +140,7 @@ export function NewJob() {
             <div className="px-5 py-10 text-center">
                 <p className="text-[13px] font-medium text-ink-900">No plan yet</p>
                 <p className="mx-auto mt-1 max-w-sm text-[12px] leading-relaxed text-ink-500">
-                  Generate a plan to see the tasks, which ones run in parallel, and where the job
+                  Generate a plan to see the steps, which ones run in parallel, and where the task
                   will pause for you.
                 </p>
               </div>
@@ -155,7 +155,7 @@ export function NewJob() {
               
                 {plan.map((step, i) =>
               <motion.li
-                key={step.task}
+                key={step.step}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
@@ -171,7 +171,7 @@ export function NewJob() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-[12px] font-medium text-ink-900">
-                          {step.task}
+                          {step.step}
                         </span>
                         <AgentTag agent={step.agent} />
                         {step.parallel &&
@@ -272,7 +272,7 @@ export function NewJob() {
             </div>
           </Panel>
 
-          <Panel title="Models this job will use">
+          <Panel title="Models this task will use">
             <ul className="space-y-2.5 text-[12px]">
               {[
               ['Qwen3-14B', 'planning, validation, browser reasoning'],
@@ -293,7 +293,7 @@ export function NewJob() {
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2.5 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-ink-500">
             
             <RocketIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
-            Dispatch job
+            Dispatch task
           </button>
           <p className="text-center text-[11px] text-ink-500">
             Writes to {connector} · {approvalRequired ? 'approval required' : 'fully autonomous'}

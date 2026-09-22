@@ -18,7 +18,7 @@ export function Home() {
                 Self-hosted agent operating system
               </p>
               <h1 className="mt-4 max-w-xl text-[36px] font-semibold leading-[1.05] tracking-tight text-white lg:text-[52px]">
-                Give one instruction. The agents do the whole job.
+                Give one instruction. The agents do the whole task.
               </h1>
               <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-shell-text lg:text-[17px]">
                 DutyCaptain plans the work, drives real browsers, reads pages and documents with
@@ -59,7 +59,7 @@ export function Home() {
             <div className="lg:pl-6">
               <ConsoleMock />
               <p className="mt-3 text-center text-[12px] text-shell-text">
-                The operator console, mid-run on a 3,500-SKU pricing job.
+                The operator console, mid-run on a 3,500-SKU pricing task.
               </p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export function Home() {
       <Section tone="light">
         <SectionHeading
           title="One sentence in, a supervised execution graph out"
-          lede="The planner never drives the browser itself. It issues typed tasks to execution agents, and you see the plan before anything runs." />
+          lede="The planner never drives the browser itself. It issues typed steps to execution agents, and you see the plan before anything runs." />
         
 
         <ol className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2 lg:grid-cols-4">
@@ -241,7 +241,7 @@ export function Home() {
               },
               {
                 t: 'An audit row per decision',
-                b: 'Model, action, target, tokens, outcome and job id — the record you hand to finance when a number looks wrong.'
+                b: 'Model, action, target, tokens, outcome and task id — the record you hand to finance when a number looks wrong.'
               },
               {
                 t: 'Your GPUs, your network',
@@ -267,7 +267,7 @@ export function Home() {
           <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-panel">
             <div className="border-b border-line px-5 py-3">
               <p className="text-[12px] font-semibold text-ink-900">Audit trail</p>
-              <p className="mt-0.5 text-[11px] text-ink-500">job_8412 · last 6 events</p>
+              <p className="mt-0.5 text-[11px] text-ink-500">task_8412 · last 6 events</p>
             </div>
             <ul className="divide-y divide-line">
               {[
@@ -305,7 +305,7 @@ export function Home() {
       </Section>
 
       <CTABand
-        title="Start with one job that has a number attached"
+        title="Start with one task that has a number attached"
         body="Pick a workflow your team does by hand today. We will run it on your hardware and show you the audit trail." />
       
     </>);

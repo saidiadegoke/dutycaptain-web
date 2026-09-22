@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: '%s · DutyCaptain'
   },
   description:
-  'An autonomous execution layer that selects the right actuator for each step of a task — native calls, APIs, browser automation, or your own computer.',
+  'An autonomous execution layer that selects the right actuator for each step of a step — native calls, APIs, browser automation, or your own computer.',
   robots: { index: false, follow: false }
 };
 

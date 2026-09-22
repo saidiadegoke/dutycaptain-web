@@ -33,7 +33,7 @@ export function Models() {
       <div>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Runtime</h1>
         <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
-          One A40 serving the whole MVP. Models load and unload per job so the smallest capable
+          One A40 serving the whole MVP. Models load and unload per task so the smallest capable
           model handles each step.
         </p>
       </div>

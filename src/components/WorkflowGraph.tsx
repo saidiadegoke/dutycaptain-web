@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckIcon, LoaderIcon, LockIcon, XIcon } from 'lucide-react';
-import { TaskNode, WorkflowStage } from '@/types';
+import { StepNode, WorkflowStage } from '@/types';
 import { AgentTag } from './StatusBadge';
 
 function centers(n: number): number[] {
@@ -44,7 +44,7 @@ function Connector({ from, to }: {from: number;to: number;}) {
 }
 
 const statusChrome: Record<
-  TaskNode['status'],
+  StepNode['status'],
   {card: string;icon: React.ReactNode;note: string;}> =
 {
   done: {
@@ -74,7 +74,7 @@ const statusChrome: Record<
   }
 };
 
-function NodeCard({ node }: {node: TaskNode;}) {
+function NodeCard({ node }: {node: StepNode;}) {
   const chrome = statusChrome[node.status];
   return (
     <article

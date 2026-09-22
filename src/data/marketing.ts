@@ -67,7 +67,7 @@ export const runSequence = [
 },
 {
   title: 'The planner decomposes it',
-  body: 'Seven tasks, three of them parallel, one human gate before any write. You review the graph before dispatch.'
+  body: 'Seven steps, three of them parallel, one human gate before any write. You review the graph before dispatch.'
 },
 {
   title: 'Workers execute',
@@ -87,7 +87,7 @@ export const comparison = {
   { feature: 'Pauses for human sign-off', values: ['Built-in approval gates', 'All or nothing', 'No guarantees'] },
   { feature: 'Record of every decision', values: ['Full audit trail', 'Logs only', 'Chat history'] },
   { feature: 'Where your data lives', values: ['Your GPUs, your network', 'Vendor cloud', 'Third-party API'] },
-  { feature: 'Cost per long job', values: ['Fixed GPU hours', 'Per-bot licence', 'Per-token, unbounded'] }]
+  { feature: 'Cost per long task', values: ['Fixed GPU hours', 'Per-bot licence', 'Per-token, unbounded'] }]
 
 };
 
@@ -168,7 +168,7 @@ export const modelStack = [
 
 
 export const clusterSizing = [
-{ service: 'Qwen3-32B planner', gpu: '2× L40S or 2× A100', note: 'Only needed for heavy planning jobs' },
+{ service: 'Qwen3-32B planner', gpu: '2× L40S or 2× A100', note: 'Only needed for heavy planning tasks' },
 { service: 'Qwen3-14B agent', gpu: '1× L40S', note: 'Handles browsing and validation' },
 { service: 'Qwen2.5-VL vision', gpu: '1× RTX 4090', note: 'Screenshot and document reading' },
 { service: 'Embeddings', gpu: 'CPU or small GPU', note: 'BGE-M3 runs comfortably on CPU' },
@@ -179,7 +179,7 @@ export const rolloutPhases = [
 {
   phase: 'Phase 1',
   title: 'One model, one browser fleet',
-  body: 'Qwen3-14B plus Playwright. Browser automation, navigation, extraction, CSV generation and connector writes — enough to run real jobs in week one.'
+  body: 'Qwen3-14B plus Playwright. Browser automation, navigation, extraction, CSV generation and connector writes — enough to run real tasks in week one.'
 },
 {
   phase: 'Phase 2',
@@ -194,7 +194,7 @@ export const rolloutPhases = [
 {
   phase: 'Phase 4',
   title: 'Add the deep planner',
-  body: 'Qwen3-32B swapped in for large multi-branch jobs, unloaded again when execution resumes.'
+  body: 'Qwen3-32B swapped in for large multi-branch tasks, unloaded again when execution resumes.'
 }];
 
 
@@ -204,9 +204,9 @@ export const plans = [
   name: 'Pilot',
   price: 'Free for 30 days',
   detail: 'One workflow, on your hardware',
-  forWho: 'Prove one job end to end before committing.',
+  forWho: 'Prove one task end to end before committing.',
   includes: [
-  '1 concurrent job, up to 5 browser workers',
+  '1 concurrent task, up to 5 browser workers',
   'Qwen3-14B + Qwen2.5-VL-7B',
   'Approval gates and audit trail',
   'Community support'],
@@ -220,9 +220,9 @@ export const plans = [
   price: '$1,900',
   period: '/month',
   detail: 'Plus your own GPU cost',
-  forWho: 'Teams running scheduled jobs against live business systems.',
+  forWho: 'Teams running scheduled tasks against live business systems.',
   includes: [
-  'Unlimited jobs, up to 40 browser workers',
+  'Unlimited tasks, up to 40 browser workers',
   'Full model stack with dynamic load/unload',
   'Scheduled and API-triggered workflows',
   'Connectors: SmartStore, ERP, Paystack, couriers',
@@ -260,18 +260,18 @@ export const pricingFaq = [
 },
 {
   q: 'Do we pay per token or per action?',
-  a: 'No. You pay a platform licence and your own compute. A 3,500-product job may make thousands of model calls without changing the bill.'
+  a: 'No. You pay a platform licence and your own compute. A 3,500-product task may make thousands of model calls without changing the bill.'
 },
 {
-  q: 'What happens when a job fails halfway?',
-  a: 'Each node carries retries, timeouts and parallelism. Failed tasks are re-dispatched independently, and the job resumes from the graph rather than restarting from the top.'
+  q: 'What happens when a task fails halfway?',
+  a: 'Each node carries retries, timeouts and parallelism. Failed steps are re-dispatched independently, and the task resumes from the graph rather than restarting from the top.'
 }];
 
 
 export const principles = [
 {
-  title: 'The smallest capable model per task',
-  body: 'A 3,500-product job can make thousands of model calls. Routing each step to the smallest model that can do it is the difference between viable and wasteful, even on your own GPUs.'
+  title: 'The smallest capable model per step',
+  body: 'A 3,500-product task can make thousands of model calls. Routing each step to the smallest model that can do it is the difference between viable and wasteful, even on your own GPUs.'
 },
 {
   title: 'The runtime is the product',
@@ -283,5 +283,5 @@ export const principles = [
 },
 {
   title: 'Measurable work, not conversation',
-  body: 'We build for jobs with a number attached — SKUs priced, invoices read, minutes saved — before general-purpose assistance.'
+  body: 'We build for tasks with a number attached — SKUs priced, invoices read, minutes saved — before general-purpose assistance.'
 }];

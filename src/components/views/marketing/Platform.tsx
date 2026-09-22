@@ -21,9 +21,9 @@ const stageChrome: Record<string, string> = {
 };
 
 const memoryTables = [
-['jobs', 'User requests and their goals'],
-['tasks', 'Individual actions in the graph'],
-['task_outputs', 'Structured JSON results'],
+['tasks', 'User requests and their goals'],
+['steps', 'Individual actions in the graph'],
+['step_outputs', 'Structured JSON results'],
 ['browser_sessions', 'Cookies and authenticated state'],
 ['documents', 'Uploaded files and scans'],
 ['embeddings', 'Semantic memory in pgvector'],
@@ -50,13 +50,13 @@ export function Platform() {
       <PageHeader
         eyebrow="Platform"
         title="An agent operating system, not a chatbot"
-        lede="The language model orchestrates. Playwright, vision, search and file tools do the actual work. That separation is what lets a job run for thirty minutes across thousands of steps without a human watching it." />
+        lede="The language model orchestrates. Playwright, vision, search and file tools do the actual work. That separation is what lets a task run for thirty minutes across thousands of steps without a human watching it." />
       
 
       <Section tone="light">
         <SectionHeading
           title="Six agents, each with one responsibility"
-          lede="Every step is routed to the smallest model that can do it. A 3,500-product job can make thousands of calls, so using a 32B model for tagging would be waste — even on hardware you own." />
+          lede="Every step is routed to the smallest model that can do it. A 3,500-product task can make thousands of calls, so using a 32B model for tagging would be waste — even on hardware you own." />
         
 
         <dl className="mt-10 divide-y divide-line border-y border-line">
@@ -117,7 +117,7 @@ export function Platform() {
                 )}
               </div>
               <figcaption className="mt-4 text-[12px] leading-relaxed text-ink-500">
-                The graph the planner produced for a four-retailer pricing job. Three extraction
+                The graph the planner produced for a four-retailer pricing task. Three extraction
                 branches run in parallel across 20 workers; the write waits behind one approval.
               </figcaption>
             </figure>
@@ -131,7 +131,7 @@ export function Platform() {
               </pre>
               <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
                 Retries and timeouts live on the node, so a failed page is re-dispatched on its own
-                instead of restarting the job.
+                instead of restarting the task.
               </p>
             </div>
 
@@ -151,7 +151,7 @@ export function Platform() {
                 )}
               </dl>
               <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
-                After dispatch, workers pull their own tasks. No model coordination is required.
+                After dispatch, workers pull their own steps. No model coordination is required.
               </p>
             </div>
           </aside>
@@ -188,7 +188,7 @@ export function Platform() {
           <div>
             <SectionHeading
               title="Memory that changes the next plan"
-              lede="Results, sessions and preferences are stored in PostgreSQL with pgvector. When an operator says “prefer Konga over Jumia”, that preference is embedded and the planner applies it to every future job." />
+              lede="Results, sessions and preferences are stored in PostgreSQL with pgvector. When an operator says “prefer Konga over Jumia”, that preference is embedded and the planner applies it to every future task." />
             
             <div className="mt-7 overflow-hidden rounded-xl border border-line">
               <table className="w-full border-collapse text-left">
@@ -226,7 +226,7 @@ export function Platform() {
 
       <CTABand
         title="See the runtime on your own workflow"
-        body="Bring a job that involves a browser, a document, or a system with no usable API. That is the interesting case." />
+        body="Bring a task that involves a browser, a document, or a system with no usable API. That is the interesting case." />
       
     </>);
 

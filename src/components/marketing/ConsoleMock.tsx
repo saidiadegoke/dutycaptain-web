@@ -16,14 +16,14 @@ const chrome: Record<string, string> = {
   wait: 'border-warn-100 bg-warn-50 text-warn-700'
 };
 
-/** A compact, honest representation of the running-job view in the console. */
+/** A compact, honest representation of the running-task view in the console. */
 export function ConsoleMock() {
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-pop">
       <div className="flex items-center justify-between border-b border-line bg-canvas px-4 py-2.5">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-brand-600" aria-hidden="true" />
-          <span className="text-[12px] font-medium text-ink-900">job_8412 · running</span>
+          <span className="text-[12px] font-medium text-ink-900">task_8412 · running</span>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
           20 workers

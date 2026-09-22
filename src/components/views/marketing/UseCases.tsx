@@ -24,14 +24,14 @@ export function UseCases() {
       <PageHeader
         eyebrow="Use cases"
         title="Work that is measurable, repetitive, and currently done by hand"
-        lede="We build for jobs with a number attached — SKUs priced, invoices read, hours returned to the team. Here is what operations teams run first." />
+        lede="We build for tasks with a number attached — SKUs priced, invoices read, hours returned to the team. Here is what operations teams run first." />
       
 
       <Section tone="light">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_minmax(0,0.9fr)] lg:gap-16">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-wider text-brand-700">
-              Most common first job · {featured.industry}
+              Most common first task · {featured.industry}
             </p>
             <h2 className="mt-3 text-[28px] font-semibold leading-tight tracking-tight text-ink-900 lg:text-[32px]">
               {featured.name}
@@ -137,7 +137,7 @@ export function UseCases() {
         <SectionHeading
           title="Is your process a good fit?"
           align="center"
-          lede="The jobs that work best share a shape. If three of these are true, it is worth a pilot." />
+          lede="The tasks that work best share a shape. If three of these are true, it is worth a pilot." />
         
         <ul className="mx-auto mt-9 grid max-w-3xl grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
           {[
@@ -156,7 +156,7 @@ export function UseCases() {
       </Section>
 
       <CTABand
-        title="Tell us the job you would hand over first"
+        title="Tell us the task you would hand over first"
         body="We scope it against the runtime, tell you honestly whether it is a fit, and run a pilot on your hardware." />
       
     </>);

@@ -13,19 +13,19 @@ const engagement = [
 },
 {
   title: 'Pilot on your hardware',
-  body: 'We deploy the MVP stack on your pod, wire one connector, and run the job end to end with approvals on.'
+  body: 'We deploy the MVP stack on your pod, wire one connector, and run the task end to end with approvals on.'
 },
 {
   title: 'Hand over the console',
-  body: 'Your operators run and supervise jobs themselves. We stay on for connector work and new workflows.'
+  body: 'Your operators run and supervise tasks themselves. We stay on for connector work and new workflows.'
 }];
 
 
 export function Company() {
   const [sent, setSent] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', company: '', job: '' });
+  const [form, setForm] = useState({ name: '', email: '', company: '', task: '' });
 
-  const valid = form.name.trim() !== '' && form.email.includes('@') && form.job.trim() !== '';
+  const valid = form.name.trim() !== '' && form.email.includes('@') && form.task.trim() !== '';
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,10 +51,10 @@ export function Company() {
               <p>
                 General-purpose assistants do not solve that. The work needs a browser that stays
                 logged in, a model that can read a page when the selectors break, a scheduler that
-                can hold thousands of tasks, and a human gate before anything is published.
+                can hold thousands of steps, and a human gate before anything is published.
               </p>
               <p>
-                So we built an agent operating system for measurable business jobs first, and left
+                So we built an agent operating system for measurable business tasks first, and left
                 the general assistant for later. Models are interchangeable — we expect to swap
                 them as better open weights ship. The workflow engine is the part that compounds.
               </p>
@@ -117,7 +117,7 @@ export function Company() {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <SectionHeading
             title="Book a demo"
-            lede="Tell us the job you would hand over first. We will run the scoping call against that specific process, with the console open." />
+            lede="Tell us the task you would hand over first. We will run the scoping call against that specific process, with the console open." />
           
 
           {sent ?
@@ -185,14 +185,14 @@ export function Company() {
               </div>
 
               <div className="mt-4">
-                <label htmlFor="job" className="block text-[12px] font-medium text-ink-900">
-                  The job you would hand over first
+                <label htmlFor="task" className="block text-[12px] font-medium text-ink-900">
+                  The task you would hand over first
                 </label>
                 <textarea
-                id="job"
+                id="task"
                 rows={4}
-                value={form.job}
-                onChange={(e) => setForm({ ...form, job: e.target.value })}
+                value={form.task}
+                onChange={(e) => setForm({ ...form, task: e.target.value })}
                 className="mt-1.5 w-full resize-none rounded-md border border-line bg-canvas px-3 py-2 text-[13px] leading-relaxed text-ink-900 focus:border-brand-500 focus:bg-panel focus:outline-none"
                 placeholder="e.g. checking competitor prices for 3,500 SKUs across four retailers every Monday" />
               

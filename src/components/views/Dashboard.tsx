@@ -13,9 +13,9 @@ import {
 import { ArrowRightIcon, ChevronRightIcon, FileSpreadsheetIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
 import { ProgressBar } from '@/components/ProgressBar';
-import { JobStatusBadge } from '@/components/StatusBadge';
+import { TaskStatusBadge } from '@/components/StatusBadge';
 import { WorkerFleet } from '@/components/WorkerFleet';
-import { activeJobId, jobs } from '@/data/jobs';
+import { activeTaskId, tasks } from '@/data/tasks';
 import { throughput, workers } from '@/data/workflow';
 import { approvals } from '@/data/approvals';
 import { modelServices } from '@/data/models';
@@ -23,7 +23,7 @@ import { artifacts } from '@/data/artifacts';
 import { count, pct } from '@/utils/format';
 
 export function Dashboard() {
-  const active = jobs.find((j) => j.id === activeJobId)!;
+  const active = tasks.find((j) => j.id === activeTaskId)!;
   const progress = pct(active.done, active.total);
   const loaded = modelServices.filter((m) => m.status === 'loaded');
 
@@ -42,13 +42,13 @@ export function Dashboard() {
             Operations overview
           </h1>
           <p className="mt-1 text-[13px] text-ink-500">
-            Friday, 11 September · 2 jobs executing, 3 decisions waiting on you.
+            Friday, 11 September · 2 tasks executing, 3 decisions waiting on you.
           </p>
         </div>
-        <Link href="/app/jobs"
+        <Link href="/app/tasks"
           className="inline-flex items-center gap-1 text-[13px] font-medium text-brand-700 transition-colors duration-150 ease-out hover:text-brand-500">
           
-          All jobs
+          All tasks
           <ArrowRightIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
         </Link>
       </div>
@@ -59,7 +59,7 @@ export function Dashboard() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
-                  <JobStatusBadge status={active.status} />
+                  <TaskStatusBadge status={active.status} />
                   <span className="font-mono text-[11px] text-ink-400">{active.id}</span>
                 </div>
                 <h2 className="mt-2 text-[17px] font-semibold tracking-tight text-ink-900">
@@ -69,10 +69,10 @@ export function Dashboard() {
                   “{active.goal}”
                 </p>
               </div>
-              <Link href={`/app/jobs/${active.id}`}
+              <Link href={`/app/tasks/${active.id}`}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-ink-900 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-ink-800">
                 
-                Open job
+                Open task
                 <ChevronRightIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
               </Link>
             </div>
@@ -87,7 +87,7 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="mt-2.5">
-                <ProgressBar value={progress} label="Job progress" />
+                <ProgressBar value={progress} label="Task progress" />
               </div>
             </div>
 

@@ -24,7 +24,7 @@ export function Security() {
           <div>
             <SectionHeading
               title="Approval gates sit inside the graph"
-              lede="The job does not stop — the branch does. Extraction, validation and reporting keep running while the write waits for you, so approving costs minutes rather than a whole re-run." />
+              lede="The task does not stop — the branch does. Extraction, validation and reporting keep running while the write waits for you, so approving costs minutes rather than a whole re-run." />
             
 
             <div className="mt-8 overflow-x-auto rounded-xl border border-line">
@@ -78,7 +78,7 @@ export function Security() {
             </figcaption>
             <div className="mt-5 space-y-2 text-center">
               <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-[12px] font-medium text-brand-700">
-                Task ready to execute
+                Step ready to execute
               </div>
               <div className="flex justify-center" aria-hidden="true">
                 <span className="h-4 w-px bg-line-strong" />
@@ -120,7 +120,7 @@ export function Security() {
       <Section tone="canvas">
         <SectionHeading
           title="Everything is written down"
-          lede="Each audit row names the agent, the model, the action, the target, the token cost, the outcome and the job. Nothing an agent did is inferred after the fact." />
+          lede="Each audit row names the agent, the model, the action, the target, the token cost, the outcome and the task. Nothing an agent did is inferred after the fact." />
         
         <div className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-3">
           {[
@@ -178,8 +178,8 @@ export function Security() {
               'Role-based permissions per action class — read, write, publish, pay.',
               'SSO on Enterprise, with group-to-role mapping.',
               'Named approver recorded on the audit row, not just “approved”.',
-              'Scheduled jobs run as a service identity with its own permitted actions.',
-              'Job-level connector scoping, so a crawl cannot reach your payments adapter.'].
+              'Scheduled tasks run as a service identity with its own permitted actions.',
+              'Task-level connector scoping, so a crawl cannot reach your payments adapter.'].
               map((item) =>
               <li key={item} className="flex gap-3 text-[14px] leading-relaxed text-ink-700">
                   <span

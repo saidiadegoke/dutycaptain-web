@@ -40,7 +40,7 @@ export const modelServices: ModelService[] = [
 {
   id: 'qwen3-32b',
   name: 'Qwen3-32B',
-  role: 'Deep planner — swapped in for large jobs only',
+  role: 'Deep planner — swapped in for large tasks only',
   gpu: 'unassigned',
   vram: '0 / 48 GB',
   vramPct: 0,
@@ -76,5 +76,5 @@ export const runtimeServices = [
 { name: 'Playwright workers', detail: '20 CPU containers · chromium, firefox, webkit', status: 'healthy' },
 { name: 'vLLM', detail: 'Serving 3 models · dynamic load/unload enabled', status: 'healthy' },
 { name: 'PostgreSQL + pgvector', detail: '8 tables · 1.9M embeddings', status: 'healthy' },
-{ name: 'Redis queue', detail: '1,082 tasks pending · 20 consumers', status: 'busy' },
+{ name: 'Redis queue', detail: '1,082 steps pending · 20 consumers', status: 'busy' },
 { name: 'Fastify API', detail: 'v0.4.1 · 142 req/min', status: 'healthy' }];

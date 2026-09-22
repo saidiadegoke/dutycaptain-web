@@ -25,7 +25,7 @@ export function AuditTrail() {
       const matchesOutcome = outcome === 'all' || e.outcome === outcome;
       const matchesQuery =
       query.trim() === '' ||
-      (e.action + e.target + e.model + e.jobId).
+      (e.action + e.target + e.model + e.taskId).
       toLowerCase().
       includes(query.trim().toLowerCase());
       return matchesOutcome && matchesQuery;
@@ -63,7 +63,7 @@ export function AuditTrail() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by action, target, model or job id…"
+            placeholder="Filter by action, target, model or task id…"
             aria-label="Filter audit trail"
             className="w-full bg-transparent text-[13px] text-ink-900 placeholder:text-ink-400 focus:outline-none" />
           
@@ -75,7 +75,7 @@ export function AuditTrail() {
           <table className="w-full min-w-[900px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-canvas">
-                {['Time', 'Agent', 'Action', 'Target', 'Model', 'Tokens', 'Job', 'Outcome'].map(
+                {['Time', 'Agent', 'Action', 'Target', 'Model', 'Tokens', 'Task', 'Outcome'].map(
                   (h) =>
                   <th
                     key={h}
@@ -109,7 +109,7 @@ export function AuditTrail() {
                   <td className="tabular px-4 py-2.5 text-[12px] text-ink-500">
                     {e.tokens > 0 ? e.tokens.toLocaleString('en-US') : '—'}
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-[11px] text-ink-500">{e.jobId}</td>
+                  <td className="px-4 py-2.5 font-mono text-[11px] text-ink-500">{e.taskId}</td>
                   <td className="px-4 py-2.5">
                     <span
                     className={`inline-flex rounded border px-1.5 py-[2px] text-[11px] font-medium capitalize ${outcomeChrome[e.outcome]}`}>

@@ -1,4 +1,4 @@
-export type JobStatus =
+export type TaskStatus =
 'running' |
 'awaiting_approval' |
 'completed' |
@@ -6,15 +6,15 @@ export type JobStatus =
 'queued' |
 'paused';
 
-export type TaskStatus = 'done' | 'running' | 'queued' | 'failed' | 'blocked';
+export type StepStatus = 'done' | 'running' | 'queued' | 'failed' | 'blocked';
 
 export type AgentKind = 'planner' | 'browser' | 'vision' | 'search' | 'file' | 'api' | 'human';
 
-export interface Job {
+export interface Task {
   id: string;
   name: string;
   goal: string;
-  status: JobStatus;
+  status: TaskStatus;
   done: number;
   total: number;
   workers: number;
@@ -26,11 +26,11 @@ export interface Job {
   connector: string;
 }
 
-export interface TaskNode {
+export interface StepNode {
   id: string;
   label: string;
   agent: AgentKind;
-  status: TaskStatus;
+  status: StepStatus;
   detail: string;
   parallelism: number;
   retries: number;
@@ -38,15 +38,15 @@ export interface TaskNode {
 
 export interface WorkflowStage {
   id: string;
-  nodes: TaskNode[];
+  nodes: StepNode[];
 }
 
-export interface TaskRun {
+export interface StepRun {
   id: string;
   node: string;
   agent: AgentKind;
   target: string;
-  status: TaskStatus;
+  status: StepStatus;
   model: string;
   duration: string;
   attempt: number;
@@ -73,8 +73,8 @@ export interface ApprovalChange {
 
 export interface Approval {
   id: string;
-  jobId: string;
-  jobName: string;
+  taskId: string;
+  taskName: string;
   action: string;
   target: string;
   changes: number;
@@ -89,7 +89,7 @@ export interface Artifact {
   id: string;
   name: string;
   kind: 'excel' | 'csv' | 'json' | 'pdf' | 'image';
-  jobName: string;
+  taskName: string;
   size: string;
   rows: number;
   createdAt: string;
@@ -117,5 +117,5 @@ export interface AuditEntry {
   target: string;
   outcome: 'ok' | 'retry' | 'blocked' | 'failed';
   tokens: number;
-  jobId: string;
+  taskId: string;
 }
