@@ -19,6 +19,7 @@ export type TaskStatus =
   | 'running'
   | 'waiting_for_approval'
   | 'waiting_for_device'
+  | 'waiting_for_budget'
   | 'paused'
   | 'done'
   | 'failed'
@@ -47,19 +48,88 @@ export interface Observation {
   cost?: { usd?: number; tokens?: number };
 }
 
+/** A verifier's verdict on one step (P2-06, §7.2). Deterministic code, never a model. */
+export interface Verification {
+  passed: boolean;
+  tier: 'targeted' | 'broad' | 'full';
+  checks: { name: string; tier: string; passed: boolean; detail?: string }[];
+  reason: string | null;
+  at: string;
+}
+
+/**
+ * Caps in force and what has been spent against them (P2-07).
+ *
+ * `used.estimated` is true because these are token counts multiplied by a price
+ * table, not an invoice from the provider. A number presented as money gets
+ * believed, so the UI says so.
+ */
+/**
+ * Where one step's time went (P2-10).
+ *
+ * `finished_at - started_at` cannot answer this: the clock on the row starts
+ * when the step is CLAIMED, which is after its arguments turn — so the model
+ * time, which dominates, is invisible in it.
+ */
+export interface StepTimings {
+  decideMs: number;
+  dispatchMs: number;
+  verifyMs: number;
+  attempts: number;
+}
+
+export interface CostRollup {
+  steps: {
+    key: string; capability: string; status: string; attempts: number;
+    costUsd: number; decideMs: number; dispatchMs: number; verifyMs: number; totalMs: number;
+  }[];
+  totals: {
+    costUsd: number; stepCostUsd: number; overheadUsd: number;
+    byKind: Record<string, { usd: number; tokens: number; calls: number }>;
+    decideMs: number; dispatchMs: number; verifyMs: number; stepMs: number; wallClockMs: number;
+  };
+  decideShare: number | null;
+}
+
+export interface TaskBudget {
+  caps: { usd: number; tokens: number; wallClockMs: number; steps: number };
+  used: { usd: number; tokensIn: number; tokensOut: number; calls: number; estimated?: boolean };
+}
+
+/**
+ * One rung of the recovery ladder a step went down (P2-08).
+ *
+ * Retries and escalations share the trail because "it succeeded on the third
+ * try" and "it succeeded at the browser level" are both things a reader needs
+ * to see, and a trail with only one of them would imply the other never
+ * happened.
+ */
+export interface RecoveryEntry {
+  kind: 'retry' | 'escalate';
+  at: string;
+  attempt?: number;
+  reason?: string;
+  from?: number;
+  to?: number;
+}
+
 export interface Step {
   id: string;
   key: string;
   title: string;
+  /** What the planner said this step must achieve (P2-01); null on reactive steps. */
+  goal: string | null;
   capability: string;
   status: StepStatus;
   runtime: string | null;
   depends_on: string[];
   attempt: number;
+  escalations: RecoveryEntry[];
   plan_version: number;
   observation: Observation | null;
-  verification: Record<string, unknown> | null;
+  verification: Verification | null;
   cost_usd: number | null;
+  timings: StepTimings | null;
   started_at: string | null;
   finished_at: string | null;
 }
@@ -80,7 +150,7 @@ export interface Task {
   objective: string;
   status: TaskStatus;
   plan_version: number;
-  budget: Record<string, unknown>;
+  budget: TaskBudget;
   error: { code?: string; message?: string } | null;
   started_at: string | null;
   finished_at: string | null;
@@ -113,6 +183,78 @@ export interface TimelineEvent {
   payload: Record<string, any>;
 }
 
+/**
+ * A durable extracted value (P2-05, §5.4).
+ *
+ * `found: false` is a real state, not an error: the step asked for a path that
+ * was not in what it got back. Recorded rather than dropped, because a silently
+ * missing fact looks exactly like one nobody asked for.
+ */
+export interface Fact {
+  key: string;
+  path: string;
+  found: boolean;
+  value: unknown;
+  note?: string;
+  clipped?: boolean;
+  step: string;
+  at: string;
+}
+
+export interface TaskState {
+  objective: string;
+  status: string;
+  planVersion: number;
+  plan: { key: string; title: string; goal: string | null; capability: string; status: string; dependsOn: string[] }[];
+  completed: unknown[];
+  failures: unknown[];
+  artifacts: unknown[];
+  facts: Fact[];
+  connections: string[];
+  devices: unknown[];
+  budget: { usdSpent: number; wallClockMs: number | null; caps: Record<string, unknown> };
+}
+
+export interface TaskStateResponse {
+  state: TaskState | null;
+  built_at: string | null;
+  fresh: boolean;
+}
+
+/**
+ * What changed between two plan versions (P2-04).
+ *
+ * `changed` is the one a set difference would miss: a step that kept its key
+ * but was re-pointed, swapped onto a different capability or given a new goal
+ * is neither added nor removed, and showing it as unchanged is how a plan
+ * quietly stops meaning what the user read.
+ */
+export interface PlanDiff {
+  added: string[];
+  removed: string[];
+  changed: { key: string; fields: string[] }[];
+  unchanged: string[];
+}
+
+export interface PlanVersion {
+  version: number;
+  kind: 'created' | 'amended' | 'replanned';
+  at: string;
+  seq: number;
+  reason: string | null;
+  steps: { key: string; title: string; capability: string; depends_on: string[] }[];
+  immediate: string[];
+  carriedForward: string[] | null;
+  diff: PlanDiff | null;
+  summary: string;
+}
+
+export interface PlanHistory {
+  current_version: number;
+  planned_at: string | null;
+  versions: PlanVersion[];
+}
+
 export interface Pagination {
   page: number;
   limit: number;
@@ -131,7 +273,9 @@ export interface SessionUser {
 export const TERMINAL: TaskStatus[] = ['done', 'failed', 'cancelled'];
 
 /** Alive, but waiting on something rather than working. */
-export const SUSPENDED: TaskStatus[] = ['waiting_for_approval', 'waiting_for_device', 'paused'];
+export const SUSPENDED: TaskStatus[] = [
+  'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'paused',
+];
 
 export const isTerminal = (s: TaskStatus) => TERMINAL.includes(s);
 export const isSuspended = (s: TaskStatus) => SUSPENDED.includes(s);

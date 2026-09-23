@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -11,10 +11,17 @@ import {
   AlertTriangleIcon } from
 'lucide-react';
 import { Panel } from '@/components/Panel';
+import { TaskTimeline } from '@/components/TaskTimeline';
+import { PlanHistory } from '@/components/PlanHistory';
+import { ModelContext } from '@/components/ModelContext';
+import { BudgetPanel } from '@/components/BudgetPanel';
+import { CostPanel } from '@/components/CostPanel';
 import { ProgressBar } from '@/components/ProgressBar';
 import { CapabilityTag, TaskStatusBadge, StepStatusBadge } from '@/components/StatusBadge';
 import { tasksApi, ApiError } from '@/lib/api';
+import { useTaskTimeline } from '@/lib/useTaskTimeline';
 import type { Observation, Step, TaskDetail as TaskDetailType } from '@/lib/types';
+import { ShieldCheckIcon, ShieldAlertIcon, RotateCwIcon, ArrowUpRightIcon } from 'lucide-react';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { pct } from '@/utils/format';
 
@@ -25,8 +32,15 @@ import { pct } from '@/utils/format';
  * typed contract: a step that reported `{ count: 412 }` can be rendered as a
  * fact, where "Success" could only ever be rendered as the word Success.
  *
- * The live event timeline is P1-16; this page polls while a task is working so
- * it is not stale in the meantime.
+ * THE PAGE IS DRIVEN BY THE EVENT LOG (P1-16), not by a timer. The timeline
+ * panel renders the stream and nothing else; the rest of the page refetches
+ * when the stream says something happened. A 3-second poll was what this did
+ * before, and it was both slower to show a change and busier when nothing was
+ * changing.
+ *
+ * A slow poll survives only for the case where the stream is NOT connected —
+ * reconnecting, or ended while the task is still active. Without it a dropped
+ * connection would freeze the page silently, which is worse than a poll.
  */
 export function TaskDetail() {
   const params = useParams();
@@ -51,19 +65,37 @@ export function TaskDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
+  const lastSeq = events.length ? events[events.length - 1].seq : 0;
+  const seenSeq = useRef(0);
+
+  // Refetch when the log moves. Debounced, because a decision turn writes
+  // several events in quick succession (`step.proposed`, `policy.decided`,
+  // `step.started`, `observation`) and the task only needs reading once after
+  // the burst — the useful state is the one at the end of it.
   useEffect(() => {
-    if (!task || !isActive(task.status)) return undefined;
-    const timer = setInterval(() => load(true), 3000);
+    if (lastSeq === 0 || lastSeq === seenSeq.current) return undefined;
+    seenSeq.current = lastSeq;
+    const timer = setTimeout(() => load(true), 250);
+    return () => clearTimeout(timer);
+  }, [lastSeq, load]);
+
+  // The fallback, and only for a task that is still going with no stream on it.
+  const streamLive = streamState === 'live' || streamState === 'loading';
+  useEffect(() => {
+    if (!task || !isActive(task.status) || streamLive) return undefined;
+    const timer = setInterval(() => load(true), 10000);
     return () => clearInterval(timer);
-  }, [task, load]);
+  }, [task, streamLive, load]);
 
   async function control(verb: 'pause' | 'resume' | 'cancel') {
     setBusy(verb);
     setActionError(null);
     try {
       setTask({ ...(task as TaskDetailType), ...(await tasksApi.control(taskId, verb)) });
-      // The status the API returns is the status now; the rest of the page
-      // catches up on the next poll.
+      // The status the API returns is the status now. The rest of the page
+      // catches up when the control verb's own event reaches the stream — the
+      // refetch below is so the button stops looking dead in the meantime.
       load(true);
     } catch (err) {
       // A 409 here is informative, not a bug — the orchestrator's message says
@@ -89,9 +121,19 @@ export function TaskDetail() {
   }
 
   const done = task.steps.filter((s) => s.status === 'done').length;
+  // How wide the graph actually got. A plan is a DAG from P2-01 on, and a flat
+  // list of rows would render two steps that ran simultaneously exactly like
+  // two that ran one after the other — which is the one thing the plan view
+  // must not do now that the scheduler really does run them together.
+  const concurrent = widestOverlap(task.steps);
   const progress = pct(done, task.steps.length);
   const canPause = isActive(task.status);
-  const canResume = isSuspended(task.status) && task.status !== 'waiting_for_approval';
+  // Neither an approval nor a budget is resumed past: one is decided, the other
+  // is raised. Offering a Resume button that the API answers with a 409 is a
+  // button that teaches people not to trust the buttons.
+  const canResume = isSuspended(task.status)
+  && task.status !== 'waiting_for_approval'
+  && task.status !== 'waiting_for_budget';
   const canCancel = !isTerminal(task.status);
 
   return (
@@ -177,10 +219,11 @@ export function TaskDetail() {
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Panel
-            title="Plan"
+            title={task.plan_version > 1 ? `Plan · v${task.plan_version}` : 'Plan'}
             description={
             task.steps.length ?
-            `${done} of ${task.steps.length} steps complete` :
+            `${done} of ${task.steps.length} steps complete${
+              concurrent > 1 ? ` · ${concurrent} ran at the same time` : ''}` :
             'The runtime has not proposed a step yet'
             }>
             
@@ -206,9 +249,31 @@ export function TaskDetail() {
               </ol>
             }
           </Panel>
+
+          <Panel
+            title="Timeline"
+            description="Every event the runtime recorded, as it recorded it">
+            <TaskTimeline events={events} state={streamState} error={streamError} />
+          </Panel>
         </div>
 
         <div className="space-y-5">
+          <Panel
+            title="Budget"
+            description={
+            task.status === 'waiting_for_budget' ?
+            'Reached — raise it to continue' :
+            'What it may spend, and what it has'
+            }>
+            
+            <BudgetPanel
+              taskId={task.id}
+              budget={task.budget}
+              suspended={task.status === 'waiting_for_budget'}
+              onChanged={() => load(true)} />
+            
+          </Panel>
+
           <Panel title="Summary" description="What the runtime recorded">
             <dl className="space-y-3 text-[12px]">
               <Row label="Plan version" value={String(task.plan_version)} />
@@ -221,14 +286,40 @@ export function TaskDetail() {
                 label="Finished"
                 value={task.finished_at ? new Date(task.finished_at).toLocaleString() : '—'} />
               
-              <Row
-                label="Spend"
-                value={`$${task.steps.
-                reduce((sum, s) => sum + (s.cost_usd || 0), 0).
-                toFixed(4)}`} />
+              {/* From the task, not re-summed from the steps: the steps do not
+                  include planning, the conclusion or the triage, so summing
+                  them here reported less than the task had actually spent. The
+                  Cost and time panel breaks it down. */}
+              <Row label="Spend, estimated" value={`$${(task.budget.used.usd || 0).toFixed(5)}`} />
               
             </dl>
           </Panel>
+
+          <Panel
+            title="Cost and time"
+            description="Where this task's money and seconds actually went">
+            <CostPanel taskId={task.id} revision={lastSeq} />
+          </Panel>
+
+          <Panel
+            title="What the model is told"
+            description="The projection it reasons from, as stored on the last turn">
+            {/* Keyed on the event cursor so it refreshes as the task moves —
+                the projection is rewritten every turn, and a stale panel here
+                would be describing a decision two steps ago. */}
+            <ModelContext taskId={task.id} revision={lastSeq} />
+          </Panel>
+
+          {/* Only when the plan actually changed. One version is not a history,
+              and a panel reading "v1, no changes" would be noise on the great
+              majority of tasks. */}
+          {task.plan_version > 1 &&
+          <Panel
+            title="Plan changes"
+            description={`${task.plan_version} versions — what changed mid-run`}>
+              <PlanHistory taskId={task.id} planVersion={task.plan_version} />
+            </Panel>
+          }
 
           <Panel
             title="Artifacts"
@@ -242,7 +333,15 @@ export function TaskDetail() {
             <ul className="space-y-2">
                 {task.artifacts.map((a) =>
               <li key={a.id} className="flex items-center justify-between gap-3 text-[12px]">
-                    <span className="truncate text-ink-900">{a.filename || a.kind}</span>
+                    {/* Downloadable from P2-09 on: tasks now produce real files,
+                        and a list of names you cannot open is a list of names. */}
+                    <button
+                  type="button"
+                  onClick={() => tasksApi.download(task.id, a.id, a.filename || a.kind)}
+                  className="truncate text-left text-brand-700 transition-colors duration-150 ease-out hover:text-brand-600 hover:underline">
+                  
+                      {a.filename || a.kind}
+                    </button>
                     <span className="shrink-0 font-mono text-[10px] text-ink-400">
                       {a.bytes ? `${Math.round(a.bytes / 1024)} KB` : a.kind}
                     </span>
@@ -255,6 +354,27 @@ export function TaskDetail() {
       </div>
     </div>);
 
+}
+
+/**
+ * The largest number of steps whose run windows overlapped.
+ *
+ * Measured from the timestamps rather than inferred from the graph: a plan can
+ * describe three independent steps and still have run them one at a time,
+ * because the concurrency limit is a runtime setting and not a property of the
+ * DAG. What the user wants to know is what actually happened.
+ */
+function widestOverlap(steps: Step[]): number {
+  const spans = steps.
+  filter((s) => s.started_at && s.finished_at).
+  map((s) => ({ from: Date.parse(s.started_at as string), to: Date.parse(s.finished_at as string) }));
+
+  let widest = 0;
+  for (const span of spans) {
+    const n = spans.filter((o) => o.from < span.to && span.from < o.to).length;
+    if (n > widest) widest = n;
+  }
+  return widest;
 }
 
 function Row({ label, value }: {label: string;value: string;}) {
@@ -277,6 +397,9 @@ function Row({ label, value }: {label: string;value: string;}) {
 function StepRow({ step }: {step: Step;}) {
   const [open, setOpen] = useState(false);
   const obs = step.observation as Observation | null;
+  const trail = step.escalations || [];
+  const retries = trail.filter((e) => e.kind === 'retry').length;
+  const escalation = [...trail].reverse().find((e) => e.kind === 'escalate');
 
   return (
     <li className="rounded-lg border border-line bg-canvas">
@@ -290,13 +413,59 @@ function StepRow({ step }: {step: Step;}) {
           <div className="flex flex-wrap items-center gap-2">
             <StepStatusBadge status={step.status} />
             <CapabilityTag capability={step.capability} runtime={step.runtime} />
-            {step.attempt > 1 &&
+            {/* How it got here. A step that took three goes, or that only
+                worked once it moved to another actuator, must not read like one
+                that worked first time (P2-08). */}
+            {retries > 0 &&
+            <span className="inline-flex items-center gap-1 text-[10px] text-warn-700">
+                <RotateCwIcon className="h-3 w-3" strokeWidth={2.4} />
+                {retries} retr{retries === 1 ? 'y' : 'ies'}
+              </span>
+            }
+            {escalation &&
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-warn-700"
+              title={escalation.reason}>
+              
+                <ArrowUpRightIcon className="h-3 w-3" strokeWidth={2.4} />
+                level {escalation.from} → {escalation.to}
+              </span>
+            }
+            {step.attempt > 1 && retries === 0 && !escalation &&
             <span className="text-[10px] text-ink-400">attempt {step.attempt}</span>
+            }
+            {/* A step that ran and did not verify must not read like one that
+                worked. §7.2: an unverified change is a guess, and a guess shown
+                as a success is the one outcome worse than a visible failure. */}
+            {step.verification &&
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] ${
+              step.verification.passed ? 'text-ok-700' : 'text-danger-700'}`
+              }
+              title={step.verification.reason || undefined}>
+              
+                {step.verification.passed ?
+                <ShieldCheckIcon className="h-3 w-3" strokeWidth={2.4} /> :
+                <ShieldAlertIcon className="h-3 w-3" strokeWidth={2.4} />}
+                {step.verification.passed ? 'verified' : 'did not verify'}
+                {step.verification.tier !== 'targeted' ? ` (${step.verification.tier})` : ''}
+              </span>
+            }
+            {step.depends_on.length > 0 ?
+            <span className="font-mono text-[10px] text-ink-400">
+                after {step.depends_on.join(', ')}
+              </span> :
+            <span className="text-[10px] text-ink-400">starts immediately</span>
             }
           </div>
           <p className="mt-1.5 truncate text-[13px] font-medium text-ink-900">{step.title}</p>
-          {obs?.summary &&
-          <p className="mt-0.5 truncate text-[12px] text-ink-500">{obs.summary}</p>
+          {/* Before a step runs its goal is all there is to read; after it runs
+              the observation is the more useful of the two. */}
+          {obs?.summary ?
+          <p className="mt-0.5 truncate text-[12px] text-ink-500">{obs.summary}</p> :
+          step.goal ?
+          <p className="mt-0.5 truncate text-[12px] text-ink-500">{step.goal}</p> :
+          null
           }
         </div>
         <span className="shrink-0 pt-1 text-[11px] text-ink-400">
@@ -306,6 +475,20 @@ function StepRow({ step }: {step: Step;}) {
 
       {open && obs &&
       <div className="border-t border-line px-3.5 py-3">
+          {step.verification && !step.verification.passed &&
+        <div className="mb-2 rounded border border-danger-100 bg-danger-50 px-2.5 py-2">
+              <p className="text-[12px] font-medium text-danger-700">
+                It ran without error and did not verify
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {step.verification.checks.filter((c) => !c.passed).map((c) =>
+            <li key={c.name} className="text-[11px] text-danger-700">
+                    <span className="font-mono">{c.name}</span> — {c.detail}
+                  </li>
+            )}
+              </ul>
+            </div>
+        }
           {obs.error &&
         <p className="mb-2 text-[12px] text-danger-700">
               <span className="font-medium">{obs.error.code}</span> — {obs.error.message}
@@ -317,8 +500,18 @@ function StepRow({ step }: {step: Step;}) {
           </pre>
           <p className="mt-2 text-[11px] text-ink-400">
             {obs.runtime} · {obs.durationMs}ms
-            {step.cost_usd ? ` · $${step.cost_usd.toFixed(4)}` : ''}
+            {step.cost_usd ? ` · $${step.cost_usd.toFixed(5)}` : ''}
           </p>
+          {/* The breakdown the row's own timestamps cannot give: the clock on a
+              step starts when it is claimed, which is after its arguments turn
+              (P2-10). */}
+          {step.timings &&
+        <p className="mt-1 text-[11px] text-ink-400">
+              {step.timings.decideMs}ms deciding · {step.timings.dispatchMs}ms running
+              {step.timings.verifyMs ? ` · ${step.timings.verifyMs}ms verifying` : ''}
+              {step.timings.attempts > 1 ? ` · ${step.timings.attempts} attempts` : ''}
+            </p>
+        }
         </div>
       }
     </li>);

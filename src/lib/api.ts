@@ -22,7 +22,8 @@
  */
 
 import type {
-  Pagination, SessionUser, Task, TaskDetail, TimelineEvent,
+  CostRollup, Pagination, PlanHistory, SessionUser, Task, TaskBudget, TaskDetail,
+  TaskStateResponse, TimelineEvent,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -205,6 +206,80 @@ export const tasksApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return body.data;
+  },
+
+  /** Where this task's time and money went, per step and in total (P2-10). */
+  async cost(id: string) {
+    const body = await request<{ data: CostRollup }>(`/tasks/${id}/cost`);
+    return body.data;
+  },
+
+  /**
+   * Where to download a file a task produced (P2-09).
+   *
+   * A URL rather than a fetch, because the browser should do the downloading —
+   * but the endpoint takes a bearer token, so this is paired with `download`
+   * below rather than being usable as a plain href.
+   */
+  artifactUrl(taskId: string, artifactId: string) {
+    return `${BASE}/tasks/${taskId}/artifacts/${artifactId}`;
+  },
+
+  /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  async download(taskId: string, artifactId: string, filename: string) {
+    const res = await fetch(this.artifactUrl(taskId, artifactId), { headers: authHeaders() });
+    if (!res.ok) throw new ApiError(`Could not download ${filename}`, res.status);
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    // Revoked, or every download leaks the whole file until the tab closes.
+    URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Change the caps; resumes a task suspended for budget (P2-07).
+   *
+   * Raising a cap does not reset the spend — a task that has used $1.00 and is
+   * given $2.00 has $1.00 left. `still_over` comes back when the new caps do
+   * not clear the breach, so the console can say so rather than appear to have
+   * ignored the change.
+   */
+  async setBudget(id: string, caps: Partial<TaskBudget['caps']>) {
+    const body = await request<{ data: Task & {resumed: boolean;still_over: string | null;} }>(
+      `/tasks/${id}/budget`,
+      { method: 'POST', body: JSON.stringify(caps) },
+    );
+    return body.data;
+  },
+
+  /**
+   * The projection the model is given (P2-05).
+   *
+   * The STORED copy by default — what the model was told when it last decided —
+   * because that is the question worth asking after a task has done something
+   * strange. `fresh` rebuilds it, which answers a different question.
+   */
+  async state(id: string, { fresh = false }: {fresh?: boolean;} = {}) {
+    const body = await request<{ data: TaskStateResponse }>(
+      `/tasks/${id}/state${fresh ? '?fresh=1' : ''}`,
+    );
+    return body.data;
+  },
+
+  /**
+   * Every version this task's plan has had, and what changed at each (P2-04).
+   *
+   * Its own call rather than a field on the task: it is a history, and the
+   * detail page is a snapshot. A task that never replanned has one entry, and
+   * a page showing the current plan should not pay for every plan it has had.
+   */
+  async plan(id: string) {
+    const body = await request<{ data: PlanHistory }>(`/tasks/${id}/plan`);
     return body.data;
   },
 
