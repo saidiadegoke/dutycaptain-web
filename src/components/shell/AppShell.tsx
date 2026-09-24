@@ -12,6 +12,7 @@ import {
   CpuIcon,
   FileBoxIcon,
   GaugeIcon,
+  LaptopIcon,
   ListChecksIcon,
   PlusIcon,
   ScrollTextIcon,
@@ -24,6 +25,7 @@ const nav = [
 { to: '/app/approvals', label: 'Approvals', icon: ShieldCheckIcon, badge: 3 },
 { to: '/app/artifacts', label: 'Artifacts', icon: FileBoxIcon },
 { to: '/app/models', label: 'Runtime', icon: CpuIcon },
+{ to: '/app/devices', label: 'Computers', icon: LaptopIcon },
 { to: '/app/audit', label: 'Audit trail', icon: ScrollTextIcon }];
 
 

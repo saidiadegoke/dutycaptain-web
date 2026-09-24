@@ -300,6 +300,61 @@ export interface ApprovalGrant {
   created_at: string;
 }
 
+/**
+ * A computer the user has enrolled (P4-01/08).
+ *
+ * `connected` is DERIVED by the API from `last_seen_at`, not stored — a socket
+ * lives in one API process and a column saying `online` outlives it. Both are
+ * carried so the console can show "offline, last seen 4h ago" rather than a
+ * bare dot that says nothing about how stale it is.
+ */
+export interface Device {
+  id: string;
+  name: string;
+  platform: string | null;
+  agent_version: string | null;
+  status: 'active' | 'revoked';
+  connected: boolean;
+  /** §8.3's manifest: what the machine says it CAN do. Not what it may do. */
+  capabilities: Record<string, boolean | string[]>;
+  capabilities_at: string | null;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+  revoked_reason: string | null;
+  created_at: string;
+  key_fingerprint: string | null;
+}
+
+/** What a computer is ALLOWED to do (§8.5) — separate from what it can do. */
+export interface DeviceGrant {
+  id: string;
+  device_id: string;
+  device_name?: string;
+  capability: string;
+  /** The rule as stored, e.g. `{ root: { under: ['~/Documents'] } }`. */
+  scope: Record<string, { under?: string[]; equals?: string | string[]; matches?: string }>;
+  grant_scope: 'task' | 'always';
+  task_id: string | null;
+  approval_id: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/** An enrolment code, as issued. The code itself is returned exactly once. */
+export interface DeviceEnrolment {
+  code: string;
+  expires_at: string;
+  expires_in: number;
+  proposed_name: string | null;
+}
+
+export interface PendingEnrolment {
+  id: string;
+  proposed_name: string | null;
+  expires_at: string;
+  created_at: string;
+}
+
 /** One event as the audit returns it. */
 export interface AuditEvent {
   seq: number;

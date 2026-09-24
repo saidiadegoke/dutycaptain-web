@@ -10,6 +10,7 @@ import {
   PlayIcon,
   ShieldCheckIcon,
   TriangleAlertIcon,
+  UploadIcon,
   XIcon } from
 'lucide-react';
 import type { TimelineEvent } from '@/lib/types';
@@ -61,6 +62,11 @@ const CHROME: Record<string, { icon: typeof CheckIcon; tone: string }> = {
   verification: { icon: ShieldCheckIcon, tone: 'text-ok-700' },
   'approval.requested': { icon: ShieldCheckIcon, tone: 'text-warn-700' },
   'device.required': { icon: TriangleAlertIcon, tone: 'text-warn-700' },
+  'device.available': { icon: PlayIcon, tone: 'text-brand-700' },
+  // §8.4's auditable crossing. Given its own chrome rather than the fallback
+  // dot because "a document left your computer" is the one line on this
+  // timeline a privacy-minded person is actually scanning for.
+  'device.contents': { icon: UploadIcon, tone: 'text-warn-700' },
 };
 
 const FALLBACK = { icon: CircleDotIcon, tone: 'text-ink-500' };

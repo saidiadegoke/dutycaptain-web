@@ -22,8 +22,9 @@
  */
 
 import type {
-  Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Pagination, PlanHistory,
-  SessionUser, Task, TaskBudget, TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
+  Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
+  DeviceGrant, Pagination, PendingEnrolment, PlanHistory, SessionUser, Task, TaskBudget,
+  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -340,6 +341,86 @@ export const approvalsApi = {
 
   async revokeGrant(id: string) {
     await request(`/approvals/grants/${id}`, { method: 'DELETE' });
+  },
+};
+
+/**
+ * Devices (P4-08) — §8.
+ *
+ * Its own surface for the same reason approvals are: a computer belongs to a
+ * person, not to a task.
+ *
+ * NOTE `enrol()` RETURNS THE CODE ONCE. The API stores only a hash and has no
+ * endpoint that reads one back, so a caller that drops this value cannot
+ * recover it — the remedy is to issue another. That is deliberate on the API
+ * side and is why the view holds it in component state rather than re-fetching.
+ */
+export const devicesApi = {
+  async list({ includeRevoked = false } = {}) {
+    const body = await request<{ data: Device[] }>(
+      `/devices${includeRevoked ? '?include_revoked=true' : ''}`,
+    );
+    return body.data;
+  },
+
+  async get(id: string) {
+    const body = await request<{ data: Device }>(`/devices/${id}`);
+    return body.data;
+  },
+
+  /** Issue a short-lived code. The plaintext is in this response and nowhere else. */
+  async enrol(name?: string) {
+    const body = await request<{ data: DeviceEnrolment }>('/devices/enrol', {
+      method: 'POST',
+      body: JSON.stringify(name ? { name } : {}),
+    });
+    return body.data;
+  },
+
+  async pending() {
+    const body = await request<{ data: PendingEnrolment[] }>('/devices/pending');
+    return body.data;
+  },
+
+  async rename(id: string, name: string) {
+    const body = await request<{ data: Device }>(`/devices/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+    return body.data;
+  },
+
+  async revoke(id: string, reason?: string) {
+    const body = await request<{ data: Device }>(`/devices/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify(reason ? { reason } : {}),
+    });
+    return body.data;
+  },
+
+  async grants(deviceId?: string) {
+    const body = await request<{ data: DeviceGrant[] }>(
+      deviceId ? `/devices/${deviceId}/grants` : '/devices/grants',
+    );
+    return body.data;
+  },
+
+  async grant(deviceId: string, input: {
+    capability: string;
+    scope?: Record<string, unknown>;
+    grant_scope?: 'task' | 'always';
+    task_id?: string;
+    expires_at?: string;
+  }) {
+    const body = await request<{ data: DeviceGrant }>(`/devices/${deviceId}/grants`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return body.data;
+  },
+
+  async revokeGrant(id: string) {
+    await request(`/devices/grants/${id}`, { method: 'DELETE' });
   },
 };
 
