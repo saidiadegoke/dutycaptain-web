@@ -15,6 +15,7 @@ import { TaskTimeline } from '@/components/TaskTimeline';
 import { PlanHistory } from '@/components/PlanHistory';
 import { ModelContext } from '@/components/ModelContext';
 import { BudgetPanel } from '@/components/BudgetPanel';
+import { AuditChain } from '@/components/AuditChain';
 import { CostPanel } from '@/components/CostPanel';
 import { ProgressBar } from '@/components/ProgressBar';
 import { CapabilityTag, TaskStatusBadge, StepStatusBadge } from '@/components/StatusBadge';
@@ -254,6 +255,14 @@ export function TaskDetail() {
             title="Timeline"
             description="Every event the runtime recorded, as it recorded it">
             <TaskTimeline events={events} state={streamState} error={streamError} />
+          </Panel>
+
+          <Panel
+            title="Audit"
+            description="Proposal → policy → approval → execution, per step">
+            {/* Not a second timeline. This answers the one question a log
+                cannot: did what ran match what was approved (P3-09). */}
+            <AuditChain taskId={task.id} revision={lastSeq} />
           </Panel>
         </div>
 

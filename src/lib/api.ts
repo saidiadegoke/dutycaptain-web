@@ -22,8 +22,8 @@
  */
 
 import type {
-  CostRollup, Pagination, PlanHistory, SessionUser, Task, TaskBudget, TaskDetail,
-  TaskStateResponse, TimelineEvent,
+  Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Pagination, PlanHistory,
+  SessionUser, Task, TaskBudget, TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -184,7 +184,9 @@ export const tasksApi = {
     if (params.page) q.set('page', String(params.page));
     if (params.limit) q.set('limit', String(params.limit));
     const suffix = q.toString() ? `?${q}` : '';
-    return request<{ data: Task[]; pagination: Pagination }>(`/tasks${suffix}`);
+    // `TaskListItem`, not `Task`: the list endpoint always includes step
+    // counts, and typing it as `Task` made two views each re-declare them.
+    return request<{ data: TaskListItem[]; pagination: Pagination }>(`/tasks${suffix}`);
   },
 
   async get(id: string) {
@@ -206,6 +208,12 @@ export const tasksApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return body.data;
+  },
+
+  /** Proposal → policy → approval → execution, over the event log (P3-09). */
+  async audit(id: string) {
+    const body = await request<{ data: AuditTrailResponse }>(`/tasks/${id}/audit`);
     return body.data;
   },
 
@@ -290,6 +298,48 @@ export const tasksApi = {
       data: { events: TimelineEvent[]; last_seq: number; status: string };
     }>(`/tasks/${id}/timeline${suffix}`);
     return body.data;
+  },
+};
+
+/**
+ * Approvals (P3-06/07).
+ *
+ * Its own client surface rather than a corner of `tasksApi`, for the same
+ * reason it is its own API module: an approval is a thing a PERSON has, not a
+ * thing a task has. The queue is "what is waiting on me" across every task.
+ */
+export const approvalsApi = {
+  async list() {
+    const body = await request<{ data: Approval[] }>('/approvals');
+    return body.data;
+  },
+
+  /**
+   * Answer one. `scope` is part of the answer rather than something asked for
+   * up front — a person decides how far their yes goes having seen what it
+   * applies to.
+   */
+  async decide(id: string, {
+    granted, scope = 'once', note, broaden
+
+
+
+
+  }: {granted: boolean;scope?: 'once' | 'task' | 'always';note?: string;broaden?: boolean;}) {
+    const body = await request<{ data: Approval & {resumed: boolean;grant_id: string | null;} }>(
+      `/approvals/${id}/decide`,
+      { method: 'POST', body: JSON.stringify({ granted, scope, note, broaden }) },
+    );
+    return body.data;
+  },
+
+  async grants() {
+    const body = await request<{ data: ApprovalGrant[] }>('/approvals/grants');
+    return body.data;
+  },
+
+  async revokeGrant(id: string) {
+    await request(`/approvals/grants/${id}`, { method: 'DELETE' });
   },
 };
 

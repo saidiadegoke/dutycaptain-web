@@ -1,243 +1,351 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckIcon, FlagIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import {
+  CheckIcon,
+  ClockIcon,
+  ShieldAlertIcon,
+  TrashIcon,
+  XIcon } from
+'lucide-react';
 import { Panel } from '@/components/Panel';
-import { AgentTag } from '@/components/StatusBadge';
-import { approvals } from '@/data/approvals';
-import { delta, naira } from '@/utils/format';
+import { CapabilityTag } from '@/components/StatusBadge';
+import { approvalsApi, ApiError } from '@/lib/api';
+import type { Approval, ApprovalGrant } from '@/lib/types';
 
-type Decision = 'approved' | 'rejected';
+/**
+ * Approvals (P3-07) — the screen where a person answers the policy engine.
+ *
+ * WHAT MAKES THIS SCREEN DANGEROUS is the habit of clicking yes. §7.1's three
+ * scopes exist because a task that sends forty emails would otherwise ask forty
+ * times, and a person who has been asked forty times stops reading — at which
+ * point the approval flow is not a safeguard, it is a ritual that makes one
+ * feel safe. So the card leads with **what would actually run**, not with the
+ * buttons: the arguments first, the capability second, the reason third.
+ *
+ * AND THE SCOPES ARE NOT EQUAL. "Once" is the default and the only one
+ * pre-selected. The wider two say plainly what they give away, because "always
+ * allow" is a decision a person makes in two seconds and lives with for months.
+ *
+ * WHAT IS SHOWN IS ALREADY SCRUBBED (P3-08). `args_preview` is a redacted,
+ * bounded copy — so a credential that reached the arguments is not put back on
+ * a screen here.
+ */
 
-const riskChrome = {
-  high: 'border-danger-100 bg-danger-50 text-danger-700',
-  medium: 'border-warn-100 bg-warn-50 text-warn-700',
-  low: 'border-line bg-canvas text-ink-500'
-} as const;
+const timeAgo = (iso: string) => {
+  const secs = Math.round((Date.now() - Date.parse(iso)) / 1000);
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+};
+
+const expiresIn = (iso: string | null) => {
+  if (!iso) return null;
+  const secs = Math.round((Date.parse(iso) - Date.now()) / 1000);
+  if (secs <= 0) return 'expired';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m left`;
+  return `${Math.floor(secs / 3600)}h left`;
+};
+
+const SCOPES: {value: 'once' | 'task' | 'always';label: string;detail: string;}[] = [
+{ value: 'once', label: 'Just this', detail: 'this exact call, this once' },
+{ value: 'task', label: 'This task', detail: `every ${'{capability}'} while this task runs` },
+{ value: 'always', label: 'Always', detail: 'this exact call, in any task, until you revoke it' }];
+
+
+function Argument({ name, value }: {name: string;value: unknown;}) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  const long = String(text).length > 120 || String(text).includes('\n');
+
+  return (
+    <div className="border-t border-line py-2 first:border-t-0 first:pt-0">
+      <p className="font-mono text-[10px] uppercase tracking-wide text-ink-400">{name}</p>
+      {long ?
+      <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-canvas p-2 font-mono text-[11px] leading-relaxed text-ink-900">
+          {text}
+        </pre> :
+
+      <p className="mt-0.5 break-words font-mono text-[12px] text-ink-900">{text}</p>
+      }
+    </div>);
+
+}
 
 export function Approvals() {
-  const [selectedId, setSelectedId] = useState(approvals[0].id);
-  const [decisions, setDecisions] = useState<Record<string, Decision>>({});
-  const selected = approvals.find((a) => a.id === selectedId)!;
-  const decision = decisions[selected.id];
+  const params = useSearchParams();
+  const deepLinked = params.get('approval');
+
+  const [queue, setQueue] = useState<Approval[] | null>(null);
+  const [grants, setGrants] = useState<ApprovalGrant[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scope, setScope] = useState<'once' | 'task' | 'always'>('once');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [pending, standing] = await Promise.all([approvalsApi.list(), approvalsApi.grants()]);
+      setQueue(pending);
+      setGrants(standing);
+      setSelectedId((current) => {
+        if (current && pending.some((a) => a.id === current)) return current;
+        // The push notification deep-links to one specific question; honour it
+        // when it is still waiting, rather than dropping the person at the top
+        // of a list and making them find it.
+        if (deepLinked && pending.some((a) => a.id === deepLinked)) return deepLinked;
+        return pending.length ? pending[0].id : null;
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not reach the API.');
+    }
+  }, [deepLinked]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // A task suspends the moment a policy asks, which can happen while this page
+  // is open. Polling rather than streaming: there is no per-user event stream
+  // yet (P1-13's is per task), and a question arriving thirty seconds late is
+  // not the failure mode this screen has.
+  useEffect(() => {
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  const selected = queue?.find((a) => a.id === selectedId) || null;
+
+  async function answer(granted: boolean) {
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const out = await approvalsApi.decide(selected.id, {
+        granted, scope, note: note.trim() || undefined,
+      });
+      setOutcome(
+        granted ?
+        `Approved. ${out.resumed ? 'The task is running again.' : 'The task will pick it up.'}` :
+        'Declined. The task carries on without that step.'
+      );
+      setNote('');
+      setScope('once');
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1400px]">
       <div>
         <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Approvals</h1>
         <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
-          Agents run autonomously until an action touches the business. These are paused mid-graph
-          and will resume the moment you decide.
+          Tasks run on their own until an action touches something outside the runtime. These are
+          suspended mid-plan and resume the moment you decide — nothing is lost while they wait.
         </p>
       </div>
 
+      {error &&
+      <p role="alert" className="mt-4 rounded-md border border-danger-100 bg-danger-50 px-3 py-2 text-[12px] text-danger-700">
+          {error}
+        </p>
+      }
+      {outcome &&
+      <p className="mt-4 rounded-md border border-ok-100 bg-ok-50 px-3 py-2 text-[12px] text-ok-700">
+          {outcome}
+        </p>
+      }
+
       <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Panel title="Queue" description="3 waiting" padded={false}>
+        <Panel
+          title="Waiting"
+          description={queue === null ? 'Loading…' : `${queue.length} question${queue.length === 1 ? '' : 's'}`}
+          padded={false}>
+
+          {queue !== null && queue.length === 0 ?
+          <p className="px-4 py-8 text-center text-[12px] text-ink-500">
+              Nothing is waiting on you.
+            </p> :
+
           <ul className="divide-y divide-line">
-            {approvals.map((a) => {
-              const d = decisions[a.id];
-              const isActive = a.id === selectedId;
+              {(queue || []).map((a) => {
+              const active = a.id === selectedId;
               return (
                 <li key={a.id}>
-                  <button
+                    <button
                     type="button"
                     onClick={() => setSelectedId(a.id)}
-                    aria-current={isActive}
-                    className={`w-full border-l-2 px-4 py-3.5 text-left transition-colors duration-150 ease-out ${
-                    isActive ?
-                    'border-l-brand-600 bg-brand-50' :
-                    'border-l-transparent hover:bg-canvas'}`
+                    className={`w-full px-4 py-3 text-left transition-colors duration-150 ease-out ${
+                    active ? 'bg-brand-50' : 'hover:bg-canvas'}`
                     }>
-                    
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-[13px] font-semibold tracking-tight text-ink-900">
-                        {a.action}
-                      </p>
-                      <span
-                        className={`shrink-0 rounded border px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-wide ${riskChrome[a.risk]}`}>
-                        
-                        {a.risk}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 truncate text-[12px] text-ink-500">{a.target}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <AgentTag agent={a.requestedBy} />
-                      <span className="font-mono text-[10px] text-ink-400">{a.requestedAt}</span>
-                      {d &&
-                      <span
-                        className={`ml-auto text-[10px] font-semibold uppercase tracking-wide ${
-                        d === 'approved' ? 'text-ok-700' : 'text-danger-700'}`
-                        }>
-                        
-                          {d}
-                        </span>
-                      }
-                    </div>
-                  </button>
-                </li>);
+
+                      <div className="flex items-center justify-between gap-2">
+                        <CapabilityTag capability={a.capability} runtime={null} />
+                        <span className="shrink-0 text-[10px] text-ink-400">{timeAgo(a.created_at)}</span>
+                      </div>
+                      <p className="mt-1.5 truncate text-[13px] font-medium text-ink-900">{a.summary}</p>
+                      {a.task_objective &&
+                    <p className="mt-0.5 truncate text-[11px] text-ink-500">{a.task_objective}</p>
+                    }
+                    </button>
+                  </li>);
 
             })}
-          </ul>
+            </ul>
+          }
         </Panel>
 
-        <motion.div
-          key={selected.id}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-          className="rounded-xl border border-line bg-panel shadow-panel">
-          
-          <header className="border-b border-line px-6 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="font-mono text-[11px] text-ink-400">
-                  {selected.id} · {selected.taskId}
-                </p>
-                <h2 className="mt-1.5 text-[18px] font-semibold tracking-tight text-ink-900">
-                  {selected.action}
-                </h2>
-                <p className="mt-1 text-[13px] text-ink-700">{selected.target}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                  setDecisions((d) => ({ ...d, [selected.id]: 'rejected' }))
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-danger-700 transition-colors duration-150 ease-out hover:bg-danger-50">
-                  
-                  <XIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  Reject
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                  setDecisions((d) => ({ ...d, [selected.id]: 'approved' }))
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3.5 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500">
-                  
-                  <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.6} />
-                  Approve &amp; continue
-                </button>
-              </div>
-            </div>
+        <div className="space-y-5">
+          {selected ?
+          <Panel
+            title={selected.summary}
+            description={`${selected.capability} · asked ${timeAgo(selected.created_at)}`}>
 
-            {decision &&
-            <div
-              className={`mt-4 rounded-lg border px-3.5 py-2.5 text-[12px] font-medium ${
-              decision === 'approved' ?
-              'border-ok-100 bg-ok-50 text-ok-700' :
-              'border-danger-100 bg-danger-50 text-danger-700'}`
-              }>
-              
-                {decision === 'approved' ?
-              'Approved. The graph resumed at “Update SmartStore” and the decision was written to the audit trail.' :
-              'Rejected. The task is held and the planner was asked for an alternative branch.'}
+              {/* WHAT WOULD RUN, first. The buttons are below the fold of the
+                  argument list on purpose: a person who reads only the top of
+                  this card should have read the part that matters. */}
+              <div className="rounded-lg border border-line bg-panel px-3.5 py-3">
+                <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-400">
+                  What would run
+                </p>
+                {Object.entries(selected.args_preview || {}).length === 0 ?
+              <p className="text-[12px] text-ink-500">No arguments.</p> :
+
+              Object.entries(selected.args_preview).map(([k, v]) =>
+              <Argument key={k} name={k} value={v} />
+              )
+              }
               </div>
+
+              {selected.policy_reason &&
+            <p className="mt-3 flex items-start gap-2 rounded-md border border-warn-100 bg-warn-50 px-3 py-2 text-[12px] text-warn-700">
+                  <ShieldAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
+                  {selected.policy_reason}
+                </p>
             }
 
-            <p className="mt-4 max-w-3xl text-[13px] leading-relaxed text-ink-700">
-              {selected.summary}
-            </p>
-          </header>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-ink-400">
+                <Link
+                href={`/app/tasks/${selected.task_id}`}
+                className="text-brand-700 hover:underline">
 
-          <div className="grid grid-cols-2 divide-x divide-line border-b border-line sm:grid-cols-4">
-            {[
-            { label: 'Records affected', value: selected.changes.toLocaleString('en-US') },
-            { label: 'Flagged for review', value: String(selected.sample.filter((s) => s.flag).length) },
-            { label: 'Median confidence', value: '0.94' },
-            { label: 'Reversible', value: selected.risk === 'high' ? 'Snapshot kept' : 'Yes' }].
-            map((m) =>
-            <div key={m.label} className="px-6 py-4">
-                <p className="text-[11px] text-ink-500">{m.label}</p>
-                <p className="tabular mt-1 text-[16px] font-semibold text-ink-900">{m.value}</p>
+                  See the task
+                </Link>
+                {selected.expires_at &&
+              <span className="inline-flex items-center gap-1">
+                    <ClockIcon className="h-3 w-3" strokeWidth={2.2} />
+                    {expiresIn(selected.expires_at)}
+                  </span>
+              }
+                {/* The fingerprint of the exact call. A grant is about THIS, not
+                    about the capability in general (P3-02). */}
+                <span className="font-mono">{selected.args_hash.slice(0, 12)}…</span>
               </div>
-            )}
-          </div>
 
-          <div className="px-6 py-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[12px] font-semibold text-ink-700">
-                Proposed changes — sample of {selected.sample.length}
-              </h3>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-warn-700">
-                <TriangleAlertIcon className="h-3.5 w-3.5" strokeWidth={2} />
-                Flagged rows need a second look
-              </span>
-            </div>
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="text-[12px] font-medium text-ink-900">If you allow it, how far?</p>
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {SCOPES.map((s) =>
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setScope(s.value)}
+                  className={`rounded-md border px-3 py-2 text-left transition-colors duration-150 ease-out ${
+                  scope === s.value ?
+                  'border-brand-200 bg-brand-50' :
+                  'border-line bg-panel hover:bg-canvas'}`
+                  }>
 
-            <div className="mt-3 overflow-x-auto rounded-lg border border-line">
-              <table className="w-full min-w-[680px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-line bg-canvas">
-                    {['SKU', 'Product', 'Current', 'Proposed', 'Change', 'Source', 'Confidence'].map(
-                      (h) =>
-                      <th
-                        key={h}
-                        scope="col"
-                        className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-                        
-                          {h}
-                        </th>
+                      <span className="block text-[12px] font-medium text-ink-900">{s.label}</span>
+                      {/* Said plainly. "Always allow" is decided in two seconds
+                          and lived with for months. */}
+                      <span className="mt-0.5 block text-[11px] leading-snug text-ink-500">
+                        {s.detail.replace('{capability}', selected.capability)}
+                      </span>
+                    </button>
+                )}
+                </div>
 
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {selected.sample.map((row) => {
-                    const change = delta(row.current, row.proposed);
-                    const down = row.proposed < row.current;
-                    return (
-                      <tr key={row.sku} className={row.flag ? 'bg-warn-50/60' : ''}>
-                        <td className="px-4 py-2.5 font-mono text-[11px] text-ink-700">
-                          {row.sku}
-                        </td>
-                        <td className="px-4 py-2.5 text-[12px] text-ink-900">
-                          <span className="inline-flex items-center gap-1.5">
-                            {row.product}
-                            {row.flag &&
-                            <span className="inline-flex items-center gap-1 rounded border border-warn-100 bg-warn-50 px-1 py-[1px] text-[10px] font-medium text-warn-700">
-                                <FlagIcon className="h-2.5 w-2.5" strokeWidth={2.4} />
-                                {row.flag}
-                              </span>
-                            }
-                          </span>
-                        </td>
-                        <td className="tabular px-4 py-2.5 text-[12px] text-ink-500">
-                          {naira(row.current)}
-                        </td>
-                        <td className="tabular px-4 py-2.5 text-[12px] font-semibold text-ink-900">
-                          {naira(row.proposed)}
-                        </td>
-                        <td
-                          className={`tabular px-4 py-2.5 text-[12px] font-medium ${
-                          change === '0%' ?
-                          'text-ink-400' :
-                          down ?
-                          'text-ok-700' :
-                          'text-danger-700'}`
-                          }>
-                          
-                          {change}
-                        </td>
-                        <td className="px-4 py-2.5 text-[12px] text-ink-700">{row.source}</td>
-                        <td className="tabular px-4 py-2.5 text-[12px] text-ink-700">
-                          {row.confidence.toFixed(2)}
-                        </td>
-                      </tr>);
+                <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="A note for the record (optional)"
+                className="mt-3 w-full rounded-md border border-line bg-panel px-3 py-2 text-[12px] text-ink-900 placeholder:text-ink-400" />
 
-                  })}
-                </tbody>
-              </table>
-            </div>
 
-            <p className="mt-3 text-[12px] text-ink-500">
-              Approving writes every record in one batch and keeps a pre-write snapshot for 30
-              days.
-            </p>
-          </div>
-        </motion.div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => answer(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3.5 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:opacity-60">
+
+                    <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
+                    {busy ? 'Working…' : 'Allow'}
+                  </button>
+                  <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => answer(false)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3.5 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
+
+                    <XIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
+                    Decline
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-ink-400">
+                  Declining does not fail the task — the step is marked failed and everything that
+                  did not depend on it carries on.
+                </p>
+              </div>
+            </Panel> :
+
+          <Panel title="Nothing selected" description="Pick a question from the queue">
+              <p className="py-8 text-center text-[12px] text-ink-500">
+                {queue === null ? 'Loading…' : 'There is nothing waiting on you right now.'}
+              </p>
+            </Panel>
+          }
+
+          {grants.length > 0 &&
+          <Panel
+            title="Standing permissions"
+            description={`${grants.length} thing${grants.length === 1 ? '' : 's'} you have already allowed`}>
+
+              <ul className="space-y-2">
+                {grants.map((g) =>
+              <li key={g.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-[12px] text-ink-900">{g.capability}</p>
+                      <p className="text-[11px] text-ink-500">
+                        {g.task_id ? 'for one task' : 'in any task'}
+                        {g.args_hash ? ' · that exact call' : ' · any arguments'}
+                        {' · '}{timeAgo(g.created_at)}
+                      </p>
+                    </div>
+                    {/* Revocable from the place they are listed. A permission
+                        you cannot find is one you cannot take back. */}
+                    <button
+                  type="button"
+                  onClick={async () => { await approvalsApi.revokeGrant(g.id); load(); }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-line px-2 py-1 text-[11px] text-ink-500 transition-colors duration-150 ease-out hover:bg-canvas hover:text-danger-700">
+
+                      <TrashIcon className="h-3 w-3" strokeWidth={2.2} />
+                      Revoke
+                    </button>
+                  </li>
+              )}
+              </ul>
+            </Panel>
+          }
+        </div>
       </div>
     </div>);
 

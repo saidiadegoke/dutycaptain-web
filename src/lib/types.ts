@@ -158,6 +158,17 @@ export interface Task {
   updated_at: string;
 }
 
+/**
+ * `GET /tasks` — a task with its step counts.
+ *
+ * Its own type rather than fields on `Task`, because `TaskDetail.steps` is the
+ * full step rows and the two cannot share a name. Declared once here rather
+ * than re-invented locally in each view, which is what was happening.
+ */
+export interface TaskListItem extends Task {
+  steps: { total: number; done: number; failed: number };
+}
+
 /** `GET /tasks/:id` — the task plus its current plan. */
 export interface TaskDetail extends Task {
   state?: Record<string, unknown>;
@@ -253,6 +264,79 @@ export interface PlanHistory {
   current_version: number;
   planned_at: string | null;
   versions: PlanVersion[];
+}
+
+/**
+ * A question the policy engine put to a person (P3-06/07).
+ *
+ * `args_preview` is scrubbed and bounded — a copy of the arguments for reading,
+ * not the arguments themselves (P3-08). `args_hash` is what makes a grant mean
+ * the call that was SHOWN rather than the capability in general.
+ */
+export interface Approval {
+  id: string;
+  task_id: string;
+  step_id: string | null;
+  capability: string;
+  summary: string;
+  args_preview: Record<string, unknown>;
+  args_hash: string;
+  policy_reason: string | null;
+  status: 'pending' | 'granted' | 'denied' | 'expired' | 'cancelled';
+  scope: 'once' | 'task' | 'always' | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  expires_at: string | null;
+  created_at: string;
+  task_objective?: string;
+  task_status?: TaskStatus;
+}
+
+export interface ApprovalGrant {
+  id: string;
+  task_id: string | null;
+  capability: string;
+  args_hash: string | null;
+  created_at: string;
+}
+
+/** One event as the audit returns it. */
+export interface AuditEvent {
+  seq: number;
+  type: string;
+  created_at: string;
+  payload: Record<string, any>;
+}
+
+/**
+ * The chain for one step (P3-09): proposal → policy → approval → execution.
+ *
+ * `approvalMatched` is the question the audit exists to answer — the
+ * fingerprint the policy judged at execution against the one the person was
+ * shown. `null` means it cannot be told, which is not the same as `false`.
+ */
+export interface AuditChain {
+  stepKey: string;
+  capability: string | null;
+  title: string | null;
+  proposed: AuditEvent | null;
+  decided: AuditEvent | null;
+  approval: { requested: AuditEvent | null; answered: AuditEvent | null };
+  started: AuditEvent[];
+  observations: AuditEvent[];
+  verification: AuditEvent | null;
+  recovery: AuditEvent[];
+  repair: AuditEvent[];
+  approvalMatched: boolean | null;
+  approvedHash?: string | null;
+  executedHash?: string | null;
+}
+
+export interface AuditTrailResponse {
+  task: { id: string; objective: string; status: TaskStatus };
+  steps: AuditChain[];
+  task_events: AuditEvent[];
+  approvals: Approval[];
 }
 
 export interface Pagination {

@@ -6,11 +6,12 @@ import { PlusIcon, SearchIcon, RefreshCwIcon } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { ProgressBar } from '@/components/ProgressBar';
 import { tasksApi, ApiError } from '@/lib/api';
-import type { Task, TaskStatus } from '@/lib/types';
+import type { Task, TaskListItem, TaskStatus } from '@/lib/types';
 import { isActive } from '@/lib/types';
 import { pct } from '@/utils/format';
 
-type Row = Task & {steps?: {total: number;done: number;failed: number;};};
+// Declared once in `lib/types` now — this used to be re-invented here.
+type Row = TaskListItem;
 
 const filters: Array<{id: TaskStatus | 'all';label: string;}> = [
 { id: 'all', label: 'All' },
