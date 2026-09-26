@@ -1,14 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeftIcon,
+  BrainIcon,
+  ChevronRightIcon,
+  GitBranchIcon,
+  HomeIcon,
+  InfoIcon,
+  ListIcon,
   PauseIcon,
+  PencilIcon,
   PlayIcon,
-  XIcon,
-  AlertTriangleIcon } from
+  RotateCcwIcon,
+  ShieldCheckIcon,
+  TimerIcon,
+  XIcon } from
 'lucide-react';
 import { Panel } from '@/components/Panel';
 import { RetryDialog } from '@/components/views/RetryDialog';
@@ -19,54 +28,27 @@ import { ModelContext } from '@/components/ModelContext';
 import { BudgetPanel } from '@/components/BudgetPanel';
 import { AuditChain } from '@/components/AuditChain';
 import { CostPanel } from '@/components/CostPanel';
-import { ProgressBar } from '@/components/ProgressBar';
-import { CapabilityTag, TaskStatusBadge, StepStatusBadge } from '@/components/StatusBadge';
+import { TaskStatusBadge } from '@/components/StatusBadge';
+import { TaskOutcome } from '@/components/task/TaskOutcome';
+import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
 import { tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
 import type { Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
-import { ShieldCheckIcon, ShieldAlertIcon, RotateCwIcon, ArrowUpRightIcon,
-  PencilIcon,
-  RotateCcwIcon
-} from 'lucide-react';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
-import { pct } from '@/utils/format';
+import { ago } from '@/utils/format';
 
 /**
- * Task detail (P1-15).
+ * Task detail (P1-15), laid out like a CI run page: the OUTCOME first — the
+ * result in words and the files, or why it did not finish — then the steps as
+ * a list, and every supporting detail (a step's raw result, the timeline, the
+ * audit chain, cost, what the model is told) one click away in the rail rather
+ * than all on screen at once. The chosen view is in the URL (`?view=`), so a
+ * step's detail can be linked to and Back works.
  *
- * Shows the plan and each step's OBSERVATION, which is the whole point of §6's
- * typed contract: a step that reported `{ count: 412 }` can be rendered as a
- * fact, where "Success" could only ever be rendered as the word Success.
- *
- * THE PAGE IS DRIVEN BY THE EVENT LOG (P1-16), not by a timer. The timeline
- * panel renders the stream and nothing else; the rest of the page refetches
- * when the stream says something happened. A 3-second poll was what this did
- * before, and it was both slower to show a change and busier when nothing was
- * changing.
- *
- * A slow poll survives only for the case where the stream is NOT connected —
- * reconnecting, or ended while the task is still active. Without it a dropped
- * connection would freeze the page silently, which is worse than a poll.
+ * THE PAGE IS DRIVEN BY THE EVENT LOG (P1-16), not by a timer: the page
+ * refetches when the stream says something happened, and a slow poll survives
+ * only for when the stream is not connected.
  */
-/**
- * A heading a person can read. The code stays beside it, small, for whoever
- * has to look it up.
- */
-const FAILURE_TITLES: Record<string, string> = {
-  AI_PROVIDER_UNAVAILABLE: 'The AI service is unavailable',
-  AI_GATEWAY_UNREACHABLE: 'The AI service could not be reached',
-  AI_GATEWAY_UNCONFIGURED: 'The AI service is not set up',
-  AI_PROVIDER_ERROR: 'The AI provider refused the request',
-  AI_GATEWAY_REJECTED: 'The AI service refused the request',
-  RUNNER_CRASHED: 'Something went wrong on our side',
-  NO_USABLE_PROPOSAL: 'The AI could not decide on a next step',
-  MODEL_DECLARED_FAILURE: 'The AI judged the task could not be done'
-};
-
-function failureTitle(code?: string | null) {
-  return (code && FAILURE_TITLES[code]) || 'The task failed';
-}
-
 export function TaskDetail() {
   const params = useParams();
   const taskId = String(params.taskId);
@@ -79,6 +61,12 @@ export function TaskDetail() {
   const [retryMode, setRetryMode] = useState<'retry' | 'edit' | null>(null);
   const [searches, setSearches] = useState<SearchRequest[]>([]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const view = searchParams.get('view') || 'summary';
+  const show = useCallback((next: string) => {
+    const q = next === 'summary' ? '' : `?view=${encodeURIComponent(next)}`;
+    router.push(`/app/tasks/${taskId}${q}`, { scroll: false });
+  }, [router, taskId]);
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setState('loading');
@@ -161,12 +149,7 @@ export function TaskDetail() {
   }
 
   const done = task.steps.filter((s) => s.status === 'done').length;
-  // How wide the graph actually got. A plan is a DAG from P2-01 on, and a flat
-  // list of rows would render two steps that ran simultaneously exactly like
-  // two that ran one after the other — which is the one thing the plan view
-  // must not do now that the scheduler really does run them together.
   const concurrent = widestOverlap(task.steps);
-  const progress = pct(done, task.steps.length);
   const canPause = isActive(task.status);
   // Neither an approval nor a budget is resumed past: one is decided, the other
   // is raised. Offering a Resume button that the API answers with a 409 is a
@@ -175,6 +158,13 @@ export function TaskDetail() {
   && task.status !== 'waiting_for_approval'
   && task.status !== 'waiting_for_budget';
   const canCancel = !isTerminal(task.status);
+
+  const selectedStep = view.startsWith('step:') ? task.steps.find((s) => s.id === view.slice(5)) || null : null;
+  const current: View = selectedStep ? view : RUN_DETAILS.some((d) => d.id === view) ? view : 'summary';
+  const details = RUN_DETAILS.filter((d) => d.id !== 'changes' || task.plan_version > 1);
+  const took = duration(task.started_at, task.finished_at);
+
+  const btn = 'inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60';
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -187,7 +177,7 @@ export function TaskDetail() {
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <TaskStatusBadge status={task.status} />
-            <span className="font-mono text-[11px] text-ink-400">{task.id}</span>
+            {(task.attempt ?? 1) > 1 && <span className="text-[11px] text-ink-500">Attempt {task.attempt}</span>}
           </div>
           <h1 className="mt-2 max-w-3xl text-[22px] font-semibold leading-snug tracking-tight text-ink-900">
             “{task.objective}”
@@ -195,31 +185,16 @@ export function TaskDetail() {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => setRetryMode('retry')}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
-            
+          <button type="button" disabled={busy !== null} onClick={() => setRetryMode('retry')} className={btn}>
             <RotateCcwIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
             Retry
           </button>
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => setRetryMode('edit')}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
-            
+          <button type="button" disabled={busy !== null} onClick={() => setRetryMode('edit')} className={btn}>
             <PencilIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
             Edit and retry
           </button>
           {canPause &&
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => control('pause')}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
-            
+          <button type="button" disabled={busy !== null} onClick={() => control('pause')} className={btn}>
               <PauseIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
               {busy === 'pause' ? 'Pausing…' : 'Pause'}
             </button>
@@ -229,81 +204,19 @@ export function TaskDetail() {
             type="button"
             disabled={busy !== null}
             onClick={() => control('resume')}
-            className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:opacity-60">
-            
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:opacity-60">
               <PlayIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
               {busy === 'resume' ? 'Resuming…' : 'Resume'}
             </button>
           }
           {canCancel &&
-          <button
-            type="button"
-            disabled={busy !== null}
-            onClick={() => control('cancel')}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
-            
+          <button type="button" disabled={busy !== null} onClick={() => control('cancel')} className={btn}>
               <XIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
               {busy === 'cancel' ? 'Cancelling…' : 'Cancel'}
             </button>
           }
         </div>
       </div>
-
-      {((task.attempt ?? 1) > 1 || (task.retries && task.retries.length > 0)) &&
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">
-          {(task.attempt ?? 1) > 1 &&
-        <span>
-              <span className="font-medium text-ink-900">Attempt {task.attempt}</span>
-              {task.retry_of &&
-          <>
-                  {' · retry of '}
-                  <Link href={`/app/tasks/${task.retry_of}`} className="text-brand-700 hover:text-brand-500">
-                    attempt {(task.attempt ?? 2) - 1}
-                  </Link>
-                </>
-          }
-              {task.retry &&
-          <span className="text-ink-500">
-                  {task.retry.learned_from.length ?
-            ` · learned from attempt${task.retry.learned_from.length > 1 ? 's' : ''} ${[...task.retry.learned_from].sort((a, b) => a - b).join(', ')}` :
-            ' · started fresh'}
-                  {task.retry.objective_changed ? ' · task reworded' : ''}
-                </span>
-          }
-            </span>
-        }
-          {task.retries && task.retries.length > 0 &&
-        <span>
-              Retried as{' '}
-              {task.retries.map((r, i) =>
-          <span key={r.id}>
-                  {i > 0 && ', '}
-                  <Link href={`/app/tasks/${r.id}`} className="font-medium text-brand-700 hover:text-brand-500">
-                    attempt {r.attempt}
-                  </Link>
-                  <span className="text-ink-500"> ({r.status.replace(/_/g, ' ')})</span>
-                </span>
-          )}
-            </span>
-        }
-          {task.retry?.note &&
-        <span className="basis-full text-ink-500">
-              <span className="font-medium text-ink-700">Note for this attempt:</span> {task.retry.note}
-            </span>
-        }
-        </div>
-      }
-
-      {searches.map((r) =>
-      <SearchRequestCard
-        key={r.id}
-        taskId={task.id}
-        request={r}
-        onDone={() => {
-          setSearches((all) => all.filter((x) => x.id !== r.id));
-          load(true);
-        }} />
-      )}
 
       {retryMode &&
       <RetryDialog
@@ -324,172 +237,246 @@ export function TaskDetail() {
         </p>
       }
 
-      {task.status === 'waiting_for_approval' &&
-      <p className="mt-3 rounded-md border border-warn-100 bg-warn-50 px-3 py-2 text-[12px] text-warn-700">
-          This task is waiting for your approval.{' '}
-          <Link href="/app/approvals" className="font-medium underline">Review it in Approvals</Link>.
-        </p>
-      }
+      {/* On a phone the rail becomes one menu above the content. */}
+      <label className="mt-5 block lg:hidden">
+        <span className="sr-only">Show</span>
+        <select
+          value={current}
+          onChange={(e) => show(e.target.value as View)}
+          className="w-full cursor-pointer rounded-md border border-line bg-panel px-3 py-2 text-[13px] text-ink-900">
+          <option value="summary">Summary</option>
+          <optgroup label="Steps">
+            {task.steps.map((s) => <option key={s.id} value={`step:${s.id}`}>{s.title}</option>)}
+          </optgroup>
+          <optgroup label="Run details">
+            {details.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </optgroup>
+        </select>
+      </label>
 
-      {task.error?.message &&
-      <div className="mt-3 flex items-start gap-2 rounded-md border border-danger-100 bg-danger-50 px-3 py-2.5">
-          <AlertTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-700" strokeWidth={2.2} />
-          <div>
-            <p className="text-[12px] font-medium text-danger-700">
-              {failureTitle(task.error.code)}
-              {task.error.code &&
-            <span className="ml-2 font-mono text-[10px] font-normal text-danger-700/70">{task.error.code}</span>
-            }
-            </p>
-            <p className="mt-0.5 text-[12px] text-danger-700">{task.error.message}</p>
-          </div>
-        </div>
-      }
+      <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <nav aria-label="Task sections" className="hidden lg:block">
+          <RailItem active={current === 'summary'} onClick={() => show('summary')}>
+            <HomeIcon className="h-4 w-4 shrink-0 text-ink-500" strokeWidth={2} />
+            <span className="font-medium">Summary</span>
+          </RailItem>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
-          <Panel
-            title={task.plan_version > 1 ? `Plan · v${task.plan_version}` : 'Plan'}
-            description={
-            task.steps.length ?
-            `${done} of ${task.steps.length} steps complete${
-              concurrent > 1 ? ` · ${concurrent} ran at the same time` : ''}` :
-            'The runtime has not proposed a step yet'
-            }>
-            
-            {task.steps.length > 0 &&
-            <div className="mb-4">
-                <ProgressBar
-                value={progress}
-                tone={task.status === 'failed' ? 'warn' : task.status === 'done' ? 'ok' : 'brand'}
-                label="Task progress" />
-              
-              </div>
-            }
+          <p className="mt-5 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+            Steps{task.steps.length ? ` · ${done}/${task.steps.length}` : ''}
+          </p>
+          {task.steps.length === 0 ?
+          <p className="px-3 py-2 text-[12px] text-ink-500">Not planned yet</p> :
+          task.steps.map((s) =>
+          <RailItem key={s.id} active={current === `step:${s.id}`} onClick={() => show(`step:${s.id}`)}>
+                <StepIcon step={s} />
+                <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                <span className="shrink-0 text-[11px] text-ink-400">{duration(s.started_at, s.finished_at) || ''}</span>
+              </RailItem>
+          )}
 
-            {task.steps.length === 0 ?
-            <p className="py-6 text-center text-[12px] text-ink-500">
-                Nothing yet — the first decision turn is on its way.
-              </p> :
+          <p className="mt-5 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-400">Run details</p>
+          {details.map((d) =>
+          <RailItem key={d.id} active={current === d.id} onClick={() => show(d.id)}>
+              <d.icon className="h-4 w-4 shrink-0 text-ink-500" strokeWidth={2} />
+              <span>{d.label}</span>
+            </RailItem>
+          )}
+        </nav>
 
-            <ol className="space-y-2.5">
-                {task.steps.map((step) =>
-              <StepRow key={step.id} step={step} />
-              )}
-              </ol>
-            }
-          </Panel>
+        <div className="min-w-0 space-y-5">
+          {current === 'summary' &&
+          <>
+              {/* The run at a glance. */}
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-line bg-panel px-5 py-4 shadow-panel sm:grid-cols-5">
+                <Fact label="Status" value={task.status.replace(/_/g, ' ')} />
+                <Fact label="Started" value={task.started_at ? ago(task.started_at) : 'not yet'} title={task.started_at ? new Date(task.started_at).toLocaleString() : undefined} />
+                <Fact label={task.finished_at ? 'Total duration' : 'Running for'} value={took || '—'} />
+                <Fact label="Steps" value={task.steps.length ? `${done} of ${task.steps.length}` : '—'} />
+                <Fact label="Files" value={task.artifacts.length ? String(task.artifacts.length) : '—'} />
+              </dl>
 
-          <Panel
-            title="Timeline"
-            description="Every event the runtime recorded, as it recorded it">
-            <TaskTimeline events={events} state={streamState} error={streamError} />
-          </Panel>
-
-          <Panel
-            title="Audit"
-            description="Proposal → policy → approval → execution, per step">
-            {/* Not a second timeline. This answers the one question a log
-                cannot: did what ran match what was approved (P3-09). */}
-            <AuditChain taskId={task.id} revision={lastSeq} />
-          </Panel>
-        </div>
-
-        <div className="space-y-5">
-          <Panel
-            title="Budget"
-            description={
-            task.status === 'waiting_for_budget' ?
-            'Reached — raise it to continue' :
-            'What it may spend, and what it has'
-            }>
-            
-            <BudgetPanel
+              {searches.map((r) =>
+            <SearchRequestCard
+              key={r.id}
               taskId={task.id}
-              budget={task.budget}
-              suspended={task.status === 'waiting_for_budget'}
-              onChanged={() => load(true)} />
-            
-          </Panel>
+              request={r}
+              onDone={() => {
+                setSearches((all) => all.filter((x) => x.id !== r.id));
+                load(true);
+              }} />
+            )}
 
-          <Panel title="Summary" description="What the runtime recorded">
-            <dl className="space-y-3 text-[12px]">
-              <Row label="Plan version" value={String(task.plan_version)} />
-              <Row label="Created" value={new Date(task.created_at).toLocaleString()} />
-              <Row
-                label="Started"
-                value={task.started_at ? new Date(task.started_at).toLocaleString() : 'not yet'} />
-              
-              <Row
-                label="Finished"
-                value={task.finished_at ? new Date(task.finished_at).toLocaleString() : '—'} />
-              
-              {/* From the task, not re-summed from the steps: the steps do not
-                  include planning, the conclusion or the triage, so summing
-                  them here reported less than the task had actually spent. The
-                  Cost and time panel breaks it down. */}
-              <Row label="Spend, estimated" value={`$${(task.budget.used.usd || 0).toFixed(5)}`} />
-              
-            </dl>
-          </Panel>
+              <TaskOutcome task={task} onRetry={setRetryMode} />
 
-          <Panel
-            title="Cost and time"
-            description="Where this task's money and seconds actually went">
-            <CostPanel taskId={task.id} revision={lastSeq} />
-          </Panel>
+              {((task.attempt ?? 1) > 1 || (task.retries && task.retries.length > 0)) &&
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">
+                  {(task.attempt ?? 1) > 1 && task.retry_of &&
+              <span>
+                      Attempt {task.attempt} · retry of{' '}
+                      <Link href={`/app/tasks/${task.retry_of}`} className="text-brand-700 hover:text-brand-500">attempt {(task.attempt ?? 2) - 1}</Link>
+                      {task.retry &&
+                <span className="text-ink-500">
+                          {task.retry.learned_from.length ?
+                  ` · learned from attempt${task.retry.learned_from.length > 1 ? 's' : ''} ${[...task.retry.learned_from].sort((a, b) => a - b).join(', ')}` :
+                  ' · started fresh'}
+                          {task.retry.objective_changed ? ' · task reworded' : ''}
+                        </span>
+                }
+                    </span>
+              }
+                  {task.retries && task.retries.length > 0 &&
+              <span>
+                      Retried as{' '}
+                      {task.retries.map((r, i) =>
+                <span key={r.id}>
+                          {i > 0 && ', '}
+                          <Link href={`/app/tasks/${r.id}`} className="font-medium text-brand-700 hover:text-brand-500">attempt {r.attempt}</Link>
+                          <span className="text-ink-500"> ({r.status.replace(/_/g, ' ')})</span>
+                        </span>
+                )}
+                    </span>
+              }
+                  {task.retry?.note &&
+              <span className="basis-full text-ink-500">
+                      <span className="font-medium text-ink-700">Note for this attempt:</span> {task.retry.note}
+                    </span>
+              }
+                </div>
+            }
 
-          <Panel
-            title="What the model is told"
-            description="The projection it reasons from, as stored on the last turn">
-            {/* Keyed on the event cursor so it refreshes as the task moves —
-                the projection is rewritten every turn, and a stale panel here
-                would be describing a decision two steps ago. */}
-            <ModelContext taskId={task.id} revision={lastSeq} />
-          </Panel>
+              <Panel
+              title="How it got there"
+              description={task.steps.length ?
+              `${task.steps.length} step${task.steps.length === 1 ? '' : 's'}${concurrent > 1 ? ` · ${concurrent} ran at the same time` : ''}${task.plan_version > 1 ? ` · plan revised ${task.plan_version - 1}×` : ''} — click one for its detail` :
+              'The runtime has not proposed a step yet'}
+              padded={false}>
+                {task.steps.length === 0 ?
+              <p className="px-5 py-6 text-center text-[12px] text-ink-500">Nothing yet — the first decision is on its way.</p> :
+              <ol className="divide-y divide-line">
+                    {task.steps.map((s) =>
+                <li key={s.id}>
+                        <button
+                    type="button"
+                    onClick={() => show(`step:${s.id}`)}
+                    className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors duration-150 ease-out hover:bg-canvas">
+                          <StepIcon step={s} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-medium text-ink-900">{s.title}</span>
+                            {(s.observation as Observation | null)?.summary &&
+                      <span className="block truncate text-[12px] text-ink-500">{(s.observation as Observation).summary}</span>
+                      }
+                          </span>
+                          <span className="shrink-0 text-[11px] text-ink-400">{duration(s.started_at, s.finished_at) || ''}</span>
+                          <ChevronRightIcon className="h-4 w-4 shrink-0 text-ink-400" strokeWidth={2} />
+                        </button>
+                      </li>
+                )}
+                  </ol>
+              }
+              </Panel>
+            </>
+          }
 
-          {/* Only when the plan actually changed. One version is not a history,
-              and a panel reading "v1, no changes" would be noise on the great
-              majority of tasks. */}
-          {task.plan_version > 1 &&
-          <Panel
-            title="Plan changes"
-            description={`${task.plan_version} versions — what changed mid-run`}>
+          {selectedStep &&
+          <section className="rounded-xl border border-line bg-panel p-5 shadow-panel">
+              <button type="button" onClick={() => show('summary')} className="mb-4 inline-flex cursor-pointer items-center gap-1 text-[12px] text-ink-500 hover:text-ink-900">
+                <ArrowLeftIcon className="h-3.5 w-3.5" strokeWidth={2} /> Summary
+              </button>
+              <StepDetail step={selectedStep} />
+            </section>
+          }
+
+          {current === 'timeline' &&
+          <Panel title="Timeline" description="Every event the runtime recorded, as it recorded it">
+              <TaskTimeline events={events} state={streamState} error={streamError} />
+            </Panel>
+          }
+          {current === 'audit' &&
+          <Panel title="Audit" description="Proposal → policy → approval → execution, per step">
+              <AuditChain taskId={task.id} revision={lastSeq} />
+            </Panel>
+          }
+          {current === 'cost' &&
+          <>
+              <Panel title="Cost and time" description="Where this task's money and seconds actually went">
+                <CostPanel taskId={task.id} revision={lastSeq} />
+              </Panel>
+              <Panel title="Budget" description={task.status === 'waiting_for_budget' ? 'Reached — raise it to continue' : 'What it may spend, and what it has'}>
+                <BudgetPanel
+                taskId={task.id}
+                budget={task.budget}
+                suspended={task.status === 'waiting_for_budget'}
+                onChanged={() => load(true)} />
+              </Panel>
+            </>
+          }
+          {current === 'context' &&
+          <Panel title="What the model is told" description="The projection it reasons from, as stored on the last turn">
+              <ModelContext taskId={task.id} revision={lastSeq} />
+            </Panel>
+          }
+          {current === 'changes' &&
+          <Panel title="Plan changes" description={`${task.plan_version} versions — what changed mid-run`}>
               <PlanHistory taskId={task.id} planVersion={task.plan_version} />
             </Panel>
           }
-
-          <Panel
-            title="Artifacts"
-            description={task.artifacts.length ? `${task.artifacts.length} produced` : 'None yet'}>
-            
-            {task.artifacts.length === 0 ?
-            <p className="py-4 text-center text-[12px] text-ink-500">
-                Files a step produces appear here.
-              </p> :
-
-            <ul className="space-y-2">
-                {task.artifacts.map((a) =>
-              <li key={a.id} className="flex items-center justify-between gap-3 text-[12px]">
-                    {/* Downloadable from P2-09 on: tasks now produce real files,
-                        and a list of names you cannot open is a list of names. */}
-                    <button
-                  type="button"
-                  onClick={() => tasksApi.download(task.id, a.id, a.filename || a.kind)}
-                  className="truncate text-left text-brand-700 transition-colors duration-150 ease-out hover:text-brand-600 hover:underline">
-                  
-                      {a.filename || a.kind}
-                    </button>
-                    <span className="shrink-0 font-mono text-[10px] text-ink-400">
-                      {a.bytes ? `${Math.round(a.bytes / 1024)} KB` : a.kind}
-                    </span>
-                  </li>
-              )}
-              </ul>
-            }
-          </Panel>
+          {current === 'info' &&
+          <Panel title="Task information">
+              <dl className="space-y-3 text-[12px]">
+                <InfoRow label="Task ID" value={task.id} mono />
+                <InfoRow label="Plan version" value={String(task.plan_version)} />
+                <InfoRow label="Created" value={new Date(task.created_at).toLocaleString()} />
+                <InfoRow label="Started" value={task.started_at ? new Date(task.started_at).toLocaleString() : 'not yet'} />
+                <InfoRow label="Finished" value={task.finished_at ? new Date(task.finished_at).toLocaleString() : '—'} />
+                <InfoRow label="Spend, estimated" value={`$${(task.budget.used.usd || 0).toFixed(5)}`} />
+              </dl>
+            </Panel>
+          }
         </div>
       </div>
+    </div>);
+
+}
+
+type View = string;
+
+/** The run's supporting detail, one click away rather than all on screen. */
+const RUN_DETAILS = [
+{ id: 'timeline', label: 'Timeline', icon: ListIcon },
+{ id: 'audit', label: 'Audit', icon: ShieldCheckIcon },
+{ id: 'cost', label: 'Cost and budget', icon: TimerIcon },
+{ id: 'context', label: 'What the model is told', icon: BrainIcon },
+{ id: 'changes', label: 'Plan changes', icon: GitBranchIcon },
+{ id: 'info', label: 'Task information', icon: InfoIcon }];
+
+
+function RailItem({ active, onClick, children }: {active: boolean;onClick: () => void;children: React.ReactNode;}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`relative flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[13px] transition-colors duration-150 ease-out ${
+      active ? 'bg-panel text-ink-900 shadow-panel before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-brand-600' : 'text-ink-700 hover:bg-panel'}`}>
+      {children}
+    </button>);
+
+}
+
+function Fact({ label, value, title }: {label: string;value: string;title?: string;}) {
+  return (
+    <div title={title}>
+      <dt className="text-[11px] text-ink-500">{label}</dt>
+      <dd className="mt-1 text-[15px] font-semibold capitalize text-ink-900">{value}</dd>
+    </div>);
+
+}
+
+function InfoRow({ label, value, mono = false }: {label: string;value: string;mono?: boolean;}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-ink-500">{label}</dt>
+      <dd className={`text-right text-ink-900 ${mono ? 'font-mono text-[11px]' : 'tabular'}`}>{value}</dd>
     </div>);
 
 }
@@ -513,145 +500,4 @@ function widestOverlap(steps: Step[]): number {
     if (n > widest) widest = n;
   }
   return widest;
-}
-
-function Row({ label, value }: {label: string;value: string;}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-ink-500">{label}</dt>
-      <dd className="tabular text-right text-ink-900">{value}</dd>
-    </div>);
-
-}
-
-/**
- * One step, with what it actually observed.
- *
- * The observation is rendered rather than summarised away: §6's whole argument
- * is that the structured object — not a prose summary — is what the task
- * learned, and a UI that shows only the one-line summary throws away the part
- * the verifier and the next decision turn both rely on.
- */
-function StepRow({ step }: {step: Step;}) {
-  const [open, setOpen] = useState(false);
-  const obs = step.observation as Observation | null;
-  const trail = step.escalations || [];
-  const retries = trail.filter((e) => e.kind === 'retry').length;
-  const escalation = [...trail].reverse().find((e) => e.kind === 'escalate');
-
-  return (
-    <li className="rounded-lg border border-line bg-canvas">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        className="flex w-full items-start justify-between gap-3 px-3.5 py-3 text-left">
-        
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <StepStatusBadge status={step.status} />
-            <CapabilityTag capability={step.capability} runtime={step.runtime} />
-            {/* How it got here. A step that took three goes, or that only
-                worked once it moved to another actuator, must not read like one
-                that worked first time (P2-08). */}
-            {retries > 0 &&
-            <span className="inline-flex items-center gap-1 text-[10px] text-warn-700">
-                <RotateCwIcon className="h-3 w-3" strokeWidth={2.4} />
-                {retries} retr{retries === 1 ? 'y' : 'ies'}
-              </span>
-            }
-            {escalation &&
-            <span
-              className="inline-flex items-center gap-1 text-[10px] text-warn-700"
-              title={escalation.reason}>
-              
-                <ArrowUpRightIcon className="h-3 w-3" strokeWidth={2.4} />
-                level {escalation.from} → {escalation.to}
-              </span>
-            }
-            {step.attempt > 1 && retries === 0 && !escalation &&
-            <span className="text-[10px] text-ink-400">attempt {step.attempt}</span>
-            }
-            {/* A step that ran and did not verify must not read like one that
-                worked. §7.2: an unverified change is a guess, and a guess shown
-                as a success is the one outcome worse than a visible failure. */}
-            {step.verification &&
-            <span
-              className={`inline-flex items-center gap-1 text-[10px] ${
-              step.verification.passed ? 'text-ok-700' : 'text-danger-700'}`
-              }
-              title={step.verification.reason || undefined}>
-              
-                {step.verification.passed ?
-                <ShieldCheckIcon className="h-3 w-3" strokeWidth={2.4} /> :
-                <ShieldAlertIcon className="h-3 w-3" strokeWidth={2.4} />}
-                {step.verification.passed ? 'verified' : 'did not verify'}
-                {step.verification.tier !== 'targeted' ? ` (${step.verification.tier})` : ''}
-              </span>
-            }
-            {step.depends_on.length > 0 ?
-            <span className="font-mono text-[10px] text-ink-400">
-                after {step.depends_on.join(', ')}
-              </span> :
-            <span className="text-[10px] text-ink-400">starts immediately</span>
-            }
-          </div>
-          <p className="mt-1.5 truncate text-[13px] font-medium text-ink-900">{step.title}</p>
-          {/* Before a step runs its goal is all there is to read; after it runs
-              the observation is the more useful of the two. */}
-          {obs?.summary ?
-          <p className="mt-0.5 truncate text-[12px] text-ink-500">{obs.summary}</p> :
-          step.goal ?
-          <p className="mt-0.5 truncate text-[12px] text-ink-500">{step.goal}</p> :
-          null
-          }
-        </div>
-        <span className="shrink-0 pt-1 text-[11px] text-ink-400">
-          {obs ? (open ? 'Hide' : 'Detail') : ''}
-        </span>
-      </button>
-
-      {open && obs &&
-      <div className="border-t border-line px-3.5 py-3">
-          {step.verification && !step.verification.passed &&
-        <div className="mb-2 rounded border border-danger-100 bg-danger-50 px-2.5 py-2">
-              <p className="text-[12px] font-medium text-danger-700">
-                It ran without error and did not verify
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {step.verification.checks.filter((c) => !c.passed).map((c) =>
-            <li key={c.name} className="text-[11px] text-danger-700">
-                    <span className="font-mono">{c.name}</span> — {c.detail}
-                  </li>
-            )}
-              </ul>
-            </div>
-        }
-          {obs.error &&
-        <p className="mb-2 text-[12px] text-danger-700">
-              <span className="font-medium">{obs.error.code}</span> — {obs.error.message}
-              {obs.error.retryable && <span className="text-ink-500"> (retryable)</span>}
-            </p>
-        }
-          <pre className="max-h-72 overflow-auto rounded bg-panel p-3 font-mono text-[11px] leading-relaxed text-ink-700">
-            {JSON.stringify(obs.data, null, 2)}
-          </pre>
-          <p className="mt-2 text-[11px] text-ink-400">
-            {obs.runtime} · {obs.durationMs}ms
-            {step.cost_usd ? ` · $${step.cost_usd.toFixed(5)}` : ''}
-          </p>
-          {/* The breakdown the row's own timestamps cannot give: the clock on a
-              step starts when it is claimed, which is after its arguments turn
-              (P2-10). */}
-          {step.timings &&
-        <p className="mt-1 text-[11px] text-ink-400">
-              {step.timings.decideMs}ms deciding · {step.timings.dispatchMs}ms running
-              {step.timings.verifyMs ? ` · ${step.timings.verifyMs}ms verifying` : ''}
-              {step.timings.attempts > 1 ? ` · ${step.timings.attempts} attempts` : ''}
-            </p>
-        }
-        </div>
-      }
-    </li>);
-
 }

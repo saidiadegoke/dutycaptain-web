@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { ExternalLinkIcon, PlusIcon, SearchIcon, XIcon } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ExternalLinkIcon, FileTextIcon, PlusIcon, SearchIcon, UploadIcon, XIcon } from 'lucide-react';
 import { ApiError, tasksApi } from '@/lib/api';
-import type { SearchRequest } from '@/lib/types';
+import type { SearchRequest, SearchUpload } from '@/lib/types';
+
+const ACCEPT = '.txt,.md,.csv,.html,.htm,.pdf';
+const MAX_FINDINGS = 10;
 
 interface Finding {
   url: string;
@@ -15,7 +18,8 @@ const empty = (): Finding => ({ url: '', title: '', content: '' });
 
 /**
  * A search the task handed to its owner: open it in your own browser, paste the
- * links (and the text that answers it), and the task continues.
+ * links (and the text that answers it) or upload what you saved — a page, a
+ * PDF, a CSV — and the task continues.
  */
 export function SearchRequestCard({
   taskId,
@@ -27,26 +31,54 @@ export function SearchRequestCard({
 }: {taskId: string;request: SearchRequest;onDone: () => void;}) {
   const [findings, setFindings] = useState<Finding[]>([empty()]);
   const [notes, setNotes] = useState('');
+  const [uploads, setUploads] = useState<SearchUpload[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState<'answer' | 'decline' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
 
   const update = (i: number, key: keyof Finding, value: string) =>
   setFindings(findings.map((f, j) => j === i ? { ...f, [key]: value } : f));
 
   const usable = findings.filter((f) => f.url.trim() || f.content.trim());
+  const count = usable.length + uploads.length;
   const expires = new Date(request.expires_at);
 
+  async function upload(files: FileList | null) {
+    if (!files || !files.length) return;
+    setUploading(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        if (usable.length + uploads.length >= MAX_FINDINGS) {
+          setError(`At most ${MAX_FINDINGS} findings per search.`);
+          break;
+        }
+        const done = await tasksApi.uploadSearchFile(taskId, request.id, file);
+        setUploads((prev) => [...prev, done]);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not upload that file.');
+    } finally {
+      setUploading(false);
+      if (picker.current) picker.current.value = '';
+    }
+  }
+
   async function answer() {
-    if (!usable.length) return setError('Add at least one link, or paste the text that answers it.');
+    if (!count) return setError('Add at least one link, paste the text that answers it, or upload a file.');
     setBusy('answer');
     setError(null);
     try {
       await tasksApi.answerSearch(taskId, request.id, {
-        results: usable.map((f) => ({
-          ...(f.url.trim() ? { url: f.url.trim() } : {}),
-          ...(f.title.trim() ? { title: f.title.trim() } : {}),
-          ...(f.content.trim() ? { content: f.content.trim() } : {})
-        })),
+        results: [
+          ...usable.map((f) => ({
+            ...(f.url.trim() ? { url: f.url.trim() } : {}),
+            ...(f.title.trim() ? { title: f.title.trim() } : {}),
+            ...(f.content.trim() ? { content: f.content.trim() } : {})
+          })),
+          ...uploads.map((u) => ({ file: u.file, title: u.name }))
+        ].slice(0, MAX_FINDINGS),
         ...(notes.trim() ? { notes: notes.trim() } : {})
       });
       onDone();
@@ -137,15 +169,54 @@ export function SearchRequestCard({
 
           </div>
         )}
-        {findings.length < 10 &&
-        <button
-          type="button"
-          onClick={() => setFindings([...findings, empty()])}
-          className="inline-flex items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500">
+        {uploads.map((u, i) =>
+        <div key={u.file} className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3">
+            <FileTextIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" strokeWidth={2} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-medium text-ink-900">{u.name}</p>
+              <p className="text-[11px] text-ink-500">{u.chars.toLocaleString()} characters of text</p>
+              <p className="mt-1 line-clamp-2 text-[12px] text-ink-700">{u.preview}</p>
+            </div>
+            <button
+            type="button"
+            onClick={() => setUploads(uploads.filter((_, j) => j !== i))}
+            aria-label={`Remove ${u.name}`}
+            className="cursor-pointer rounded p-1 text-ink-400 hover:bg-canvas hover:text-ink-900">
 
-            <PlusIcon className="h-3.5 w-3.5" strokeWidth={2.4} /> Add another
-          </button>
-        }
+              <XIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
+            </button>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-4">
+          {findings.length + uploads.length < MAX_FINDINGS &&
+          <button
+            type="button"
+            onClick={() => setFindings([...findings, empty()])}
+            className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500">
+
+              <PlusIcon className="h-3.5 w-3.5" strokeWidth={2.4} /> Add another
+            </button>
+          }
+          {count < MAX_FINDINGS &&
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => picker.current?.click()}
+            className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500 disabled:cursor-wait disabled:opacity-60">
+
+              <UploadIcon className="h-3.5 w-3.5" strokeWidth={2.4} /> {uploading ? 'Uploading…' : 'Upload a file'}
+            </button>
+          }
+          <span className="text-[11px] text-ink-500">Saved pages, PDFs, text or CSV — up to 10 MB each.</span>
+          <input
+            ref={picker}
+            type="file"
+            accept={ACCEPT}
+            multiple
+            hidden
+            onChange={(e) => upload(e.target.files)} />
+
+        </div>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -174,7 +245,7 @@ export function SearchRequestCard({
         </button>
         <button
           type="button"
-          disabled={busy !== null || !usable.length}
+          disabled={busy !== null || uploading || !count}
           onClick={answer}
           className="rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">
 

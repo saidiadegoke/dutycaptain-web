@@ -1,191 +1,207 @@
 'use client';
 
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis } from
-'recharts';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Panel } from '@/components/Panel';
-import { ProgressBar } from '@/components/ProgressBar';
-import { gpuTimeline, modelServices, runtimeServices } from '@/data/models';
+import { ApiError, runtimeApi } from '@/lib/api';
+import { checked } from '@/lib/types';
+import type { RuntimeProvider, RuntimeStatus, TaskStatus } from '@/lib/types';
 
-const statusChrome = {
-  loaded: 'border-ok-100 bg-ok-50 text-ok-700',
-  standby: 'border-warn-100 bg-warn-50 text-warn-700',
-  unloaded: 'border-line bg-canvas text-ink-500'
-} as const;
+const REFRESH_MS = 15000;
 
-const serviceChrome: Record<string, string> = {
-  healthy: 'bg-ok-600',
-  busy: 'bg-warn-600',
-  down: 'bg-danger-600'
+const dot: Record<string, string> = {
+  ready: 'bg-ok-600',
+  up: 'bg-ok-600',
+  benched: 'bg-warn-600',
+  'not set up': 'bg-ink-400',
+  down: 'bg-danger-600',
 };
 
+const KIND_LABEL: Record<string, string> = { paid: 'platform credit', free: 'free', you: 'your time' };
+
+/** The runtime's state, kept fresh while the page is open. */
+export function useRuntimeStatus() {
+  const [status, setStatus] = useState<RuntimeStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const s = await runtimeApi.status();
+        if (alive) { setStatus(s); setError(null); }
+      } catch (err) {
+        if (alive) setError(err instanceof ApiError ? err.message : 'Could not check the runtime.');
+      }
+    };
+    load();
+    const timer = setInterval(load, REFRESH_MS);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+  return { status, error };
+}
+
+function Dot({ state }: { state: string }) {
+  return <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot[state] || 'bg-ink-400'}`} aria-hidden="true" />;
+}
+
+function ProviderList({ providers, empty }: { providers: RuntimeProvider[]; empty: string }) {
+  if (!providers.length) return <p className="px-5 py-4 text-[12px] text-ink-500">{empty}</p>;
+  return (
+    <ul className="divide-y divide-line">
+      {providers.map((p) =>
+      <li key={p.name} className="flex items-start gap-3 px-5 py-3.5">
+          <Dot state={p.state} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-[13px] font-medium text-ink-900">
+                <span className="mr-1.5 font-mono text-[11px] text-ink-400">{p.order}.</span>{p.label}
+              </p>
+              <p className="text-[11px] text-ink-500">
+                {p.state === 'benched' ? 'sitting out' : p.state}
+                {p.kind ? ` · ${KIND_LABEL[p.kind] || p.kind}` : ''}
+              </p>
+            </div>
+            {p.reason &&
+          <p className="mt-0.5 text-[12px] text-warn-700">
+                {p.reason}{p.until ? ` — tried again after ${new Date(p.until).toLocaleTimeString()}` : ''}
+              </p>
+          }
+          </div>
+        </li>
+      )}
+    </ul>);
+
+}
+
+function Unavailable({ what }: { what: string }) {
+  return <p className="text-[12px] text-danger-700">{what} could not be checked.</p>;
+}
+
+function Row({ state, title, detail }: { state: string; title: string; detail: string }) {
+  return (
+    <li className="flex items-start gap-3">
+      <Dot state={state} />
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-ink-900">{title}</p>
+        <p className="mt-0.5 text-[12px] text-ink-500">{detail}</p>
+      </div>
+    </li>);
+
+}
+
+const STATUS_ORDER: TaskStatus[] = [
+  'done', 'queued', 'planning', 'running', 'waiting_for_approval', 'waiting_for_input',
+  'waiting_for_device', 'waiting_for_budget', 'paused', 'failed', 'cancelled',
+];
+
 export function Models() {
-  const loadedVram = modelServices.reduce((sum, m) => sum + m.vramPct, 0);
+  const { status, error } = useRuntimeStatus();
+  const ai = checked(status?.ai);
+  const search = checked(status?.search);
+  const python = checked(status?.python);
+  const browser = checked(status?.browser);
+  const computers = checked(status?.computers);
+  const tasks = checked(status?.tasks);
 
   return (
     <div className="mx-auto max-w-[1400px]">
-      <div>
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Runtime</h1>
-        <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
-          One A40 serving the whole MVP. Models load and unload per task so the smallest capable
-          model handles each step.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Runtime</h1>
+          <p className="mt-1 max-w-2xl text-[13px] text-ink-500">
+            What runs your tasks, right now: the AI models that plan and decide, the search providers,
+            the sandbox that runs code, and the browser.
+          </p>
+        </div>
+        {status &&
+        <p className="text-[11px] text-ink-400" title={new Date(status.checkedAt).toLocaleString()}>
+            Checked {new Date(status.checkedAt).toLocaleTimeString()} · refreshes every 15 s
+          </p>
+        }
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
-        <Panel
-          title="VRAM allocation"
-          description={`${loadedVram}% of 48 GB committed`}
-          className="xl:col-span-2">
-          
-          <div className="flex h-8 w-full overflow-hidden rounded-md border border-line">
-            {modelServices.
-            filter((m) => m.vramPct > 0).
-            map((m, i) =>
-            <div
-              key={m.id}
-              title={`${m.name} — ${m.vram}`}
-              className={`flex items-center justify-center text-[10px] font-medium text-white ${
-              ['bg-brand-700', 'bg-brand-500', 'bg-brand-200'][i] ?? 'bg-brand-200'} ${
-              i === 2 ? 'text-brand-900' : ''}`}
-              style={{ width: `${m.vramPct}%` }}>
-              
-                  {m.vramPct > 8 ? m.name : ''}
-                </div>
-            )}
-            <div
-              className="flex flex-1 items-center justify-center bg-canvas text-[10px] font-medium text-ink-500"
-              style={{ width: `${100 - loadedVram}%` }}>
-              
-              {100 - loadedVram}% free
-            </div>
+      {error &&
+      <p role="alert" className="mt-4 rounded-md border border-danger-100 bg-danger-50 px-3 py-2 text-[12px] text-danger-700">{error}</p>
+      }
+
+      {!status && !error ?
+      <div className="mt-5 h-48 animate-pulse rounded-xl border border-line bg-panel shadow-panel" aria-label="Loading" /> :
+      status &&
+      <>
+          <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <Panel
+            title="AI models"
+            description={ai ?
+            ai.connection ? `Your own model: ${ai.connection}` :
+            `Tried in this order; the next answers when one is out of credits or down.${ai.model ? ` Model: ${ai.model}.` : ''}` :
+            'Could not be checked'}
+            padded={false}>
+
+              {ai ?
+            <ProviderList providers={ai.providers} empty={ai.connection ? 'Calls go to your connected model.' : 'No AI provider is configured.'} /> :
+            <div className="px-5 py-4"><Unavailable what="The AI providers" /></div>}
+            </Panel>
+
+            <Panel
+            title="Web search"
+            description={search ? search.chosenByAccount ? 'Your order, from Settings.' : 'The platform’s order — you can change it in Settings.' : 'Could not be checked'}
+            padded={false}
+            action={<Link href="/app/settings" className="text-[12px] font-medium text-brand-700 hover:text-brand-500">Settings</Link>}>
+
+              {search ?
+            <ProviderList providers={search.providers} empty="No search provider is enabled." /> :
+            <div className="px-5 py-4"><Unavailable what="Search" /></div>}
+            </Panel>
+
+            <Panel title="Services">
+              <ul className="space-y-4">
+                {python ?
+              <Row
+                state={python.available ? 'up' : 'down'}
+                title="Code sandbox"
+                detail={`${python.available ? 'Running' : 'Unavailable'} on ${python.executor}${
+                python.fallback ? `, ${python.fallback.executor} as fallback (${python.fallback.available ? 'ready' : 'unavailable'})` : ''}. ${
+                python.files ? 'Scripts can read the full text of earlier results.' : 'Scripts get earlier results inline only.'}`} /> :
+              <li><Unavailable what="The code sandbox" /></li>}
+                {browser ?
+              <Row
+                state={browser.available ? 'up' : 'not set up'}
+                title="Browser"
+                detail={browser.available ? 'Ready for pages that need a real browser.' : 'Not available — tasks read pages over HTTP only.'} /> :
+              <li><Unavailable what="The browser worker" /></li>}
+                {computers ?
+              <Row
+                state={computers.connected ? 'up' : 'not set up'}
+                title="Your computers"
+                detail={computers.total ?
+                `${computers.connected} of ${computers.total} online.` :
+                'None connected. Tasks that need your files or apps wait for one.'} /> :
+              <li><Unavailable what="Your computers" /></li>}
+              </ul>
+              <Link href="/app/devices" className="mt-4 inline-block text-[12px] font-medium text-brand-700 hover:text-brand-500">
+                Manage computers
+              </Link>
+            </Panel>
           </div>
 
-          <div className="mt-6 h-[180px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={gpuTimeline} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
-                <defs>
-                  <linearGradient id="fillVram" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2456d8" stopOpacity={0.16} />
-                    <stop offset="100%" stopColor="#2456d8" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#e4e8ef" vertical={false} />
-                <XAxis
-                  dataKey="t"
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  stroke="#e4e8ef"
-                  tickLine={false} />
-                
-                <YAxis
-                  unit="%"
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  stroke="#e4e8ef"
-                  tickLine={false}
-                  axisLine={false} />
-                
-                <Tooltip
-                  contentStyle={{
-                    border: '1px solid #e4e8ef',
-                    borderRadius: 8,
-                    fontSize: 12
-                  }}
-                  labelStyle={{ color: '#0b1220', fontWeight: 600 }} />
-                
-                <Area
-                  type="monotone"
-                  dataKey="vram"
-                  name="VRAM used"
-                  stroke="#2456d8"
-                  strokeWidth={2}
-                  fill="url(#fillVram)" />
-                
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="mt-5">
+            <Panel title="Your tasks, last 7 days" description={tasks ? `${tasks.total} task${tasks.total === 1 ? '' : 's'}` : 'Could not be checked'}>
+              {tasks ?
+            tasks.total ?
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 lg:grid-cols-8">
+                    {STATUS_ORDER.filter((s) => tasks.byStatus[s]).map((s) =>
+              <div key={s}>
+                        <dt className="text-[11px] capitalize text-ink-500">{s.replace(/_/g, ' ')}</dt>
+                        <dd className="tabular mt-1 text-[18px] font-semibold text-ink-900">{tasks.byStatus[s]}</dd>
+                      </div>
+              )}
+                  </dl> :
+            <p className="text-[12px] text-ink-500">No tasks in the last week.</p> :
+            <Unavailable what="Your tasks" />}
+            </Panel>
           </div>
-        </Panel>
-
-        <Panel title="Services" padded={false}>
-          <ul className="divide-y divide-line">
-            {runtimeServices.map((s) =>
-            <li key={s.name} className="flex items-start gap-3 px-5 py-3.5">
-                <span
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${serviceChrome[s.status]}`}
-                aria-hidden="true" />
-              
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-ink-900">{s.name}</p>
-                  <p className="mt-0.5 text-[12px] text-ink-500">{s.detail}</p>
-                </div>
-              </li>
-            )}
-          </ul>
-        </Panel>
-      </div>
-
-      <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {modelServices.map((m) =>
-        <article
-          key={m.id}
-          className={`rounded-xl border bg-panel p-5 shadow-panel ${
-          m.status === 'loaded' ? 'border-line' : 'border-dashed border-line-strong'}`
-          }>
-          
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-mono text-[13px] font-semibold text-ink-900">{m.name}</h2>
-                <p className="mt-1 text-[12px] leading-snug text-ink-500">{m.role}</p>
-              </div>
-              <span
-              className={`shrink-0 rounded border px-1.5 py-[2px] text-[10px] font-semibold uppercase tracking-wide ${statusChrome[m.status]}`}>
-              
-                {m.status}
-              </span>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-baseline justify-between">
-                <p className="text-[11px] text-ink-500">VRAM</p>
-                <p className="tabular text-[11px] font-medium text-ink-900">{m.vram}</p>
-              </div>
-              <div className="mt-1.5">
-                <ProgressBar
-                value={m.vramPct}
-                size="sm"
-                tone={m.status === 'loaded' ? 'brand' : 'neutral'}
-                label={`${m.name} VRAM`} />
-              
-              </div>
-            </div>
-
-            <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-3.5">
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-ink-400">GPU</dt>
-                <dd className="mt-0.5 text-[11px] text-ink-700">{m.gpu}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-ink-400">Latency</dt>
-                <dd className="tabular mt-0.5 text-[11px] text-ink-700">{m.latency}</dd>
-              </div>
-              <div>
-                <dt className="text-[10px] uppercase tracking-wide text-ink-400">Queue</dt>
-                <dd className="tabular mt-0.5 text-[11px] text-ink-700">{m.queue}</dd>
-              </div>
-            </dl>
-
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-wide text-ink-400">
-              Rollout phase {m.phase}
-            </p>
-          </article>
-        )}
-      </div>
+        </>
+      }
     </div>);
 
 }

@@ -23,7 +23,7 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SessionUser, Task, TaskBudget,
+  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
@@ -104,10 +104,11 @@ async function refreshSession(): Promise<boolean> {
   return true;
 }
 
-function authHeaders(extra?: HeadersInit): HeadersInit {
+function authHeaders(extra?: HeadersInit, multipart = false): HeadersInit {
   const token = session.accessToken();
   return {
-    'Content-Type': 'application/json',
+    // A multipart body sets its own Content-Type, boundary included.
+    ...(multipart ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...extra,
   };
@@ -121,7 +122,8 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
  * the same 401.
  */
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { ...init, headers: authHeaders(init.headers) });
+  const multipart = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  const res = await fetch(`${BASE}${path}`, { ...init, headers: authHeaders(init.headers, multipart) });
 
   if (res.status === 401 && retry) {
     refreshing = refreshing || refreshSession().finally(() => { refreshing = null; });
@@ -338,8 +340,19 @@ export const tasksApi = {
   },
 
   /** Answer with what you found — resumes the task. */
+  /** Upload a file (.txt .md .csv .html .htm .pdf) as what you found; point an answer at `file`. */
+  async uploadSearchFile(id: string, requestId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const body = await request<{ data: SearchUpload }>(
+      `/tasks/${id}/search-requests/${requestId}/files`,
+      { method: 'POST', body: form },
+    );
+    return body.data;
+  },
+
   async answerSearch(id: string, requestId: string, input: {
-    results: { url?: string; title?: string; content?: string }[]; notes?: string;
+    results: { url?: string; title?: string; content?: string; file?: string }[]; notes?: string;
   }) {
     const body = await request<{ data: { resumed: boolean } }>(
       `/tasks/${id}/search-requests/${requestId}/answer`,
@@ -381,6 +394,14 @@ export const tasksApi = {
   },
 
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  /** A text file's contents, for a preview on the page (the first `maxChars`). */
+  async artifactText(taskId: string, artifactId: string, maxChars = 200_000) {
+    const res = await fetch(this.artifactUrl(taskId, artifactId), { headers: authHeaders() });
+    if (!res.ok) throw new ApiError('Could not load the file', res.status);
+    const text = await res.text();
+    return { text: text.slice(0, maxChars), truncated: text.length > maxChars };
+  },
+
   async download(taskId: string, artifactId: string, filename: string) {
     const res = await fetch(this.artifactUrl(taskId, artifactId), { headers: authHeaders() });
     if (!res.ok) throw new ApiError(`Could not download ${filename}`, res.status);
@@ -454,6 +475,24 @@ export const tasksApi = {
  * reason it is its own API module: an approval is a thing a PERSON has, not a
  * thing a task has. The queue is "what is waiting on me" across every task.
  */
+export const runtimeApi = {
+  /** AI and search providers, the sandbox, the browser worker, computers, recent tasks. */
+  async status() {
+    const body = await request<{ data: RuntimeStatus }>('/runtime/status');
+    return body.data;
+  },
+};
+
+export const artifactsApi = {
+  /** Every file this account's tasks produced, newest first. */
+  async list({ page = 1, limit = 25 }: { page?: number; limit?: number } = {}) {
+    const body = await request<{ data: { artifacts: ArtifactRow[]; pagination: Pagination } }>(
+      `/artifacts?page=${page}&limit=${limit}`,
+    );
+    return body.data;
+  },
+};
+
 export const approvalsApi = {
   async list() {
     const body = await request<{ data: Approval[] }>('/approvals');

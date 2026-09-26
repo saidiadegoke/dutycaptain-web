@@ -153,6 +153,8 @@ export interface Task {
   plan_version: number;
   budget: TaskBudget;
   error: { code?: string; message?: string } | null;
+  /** What a finished task came to, in words (detail only; null until done). */
+  outcome?: { summary: string | null; steps_run: number | null; steps_failed: number; steps_skipped: number } | null;
   /** 1 for an original; 2+ for a retry. */
   attempt?: number;
   /** The attempt this one retried, if it is a retry. */
@@ -449,12 +451,20 @@ export interface SearchRequest {
   query: string;
   max_results: number;
   status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
-  answer: { results: { url: string | null; title: string | null; content: string | null }[]; notes: string | null } | null;
+  answer: { results: { url: string | null; title: string | null; content: string | null; file?: string }[]; notes: string | null } | null;
   created_at: string;
   answered_at: string | null;
   expires_at: string;
   /** Where to start: the query in the person's own browser. */
   search_url: string;
+}
+
+/** A file uploaded to answer a search: `file` is its text, in the task workspace. */
+export interface SearchUpload {
+  file: string;
+  name: string;
+  chars: number;
+  preview: string;
 }
 
 /** `GET /search/settings` — which providers this account uses, and why. */
@@ -471,3 +481,45 @@ export interface SearchSettings {
     installed: boolean;
   }[];
 }
+
+/** A file a task produced, with the task that made it (GET /artifacts). */
+export interface ArtifactRow {
+  id: string;
+  task_id: string;
+  step_id: string | null;
+  kind: string;
+  filename: string | null;
+  mime: string | null;
+  bytes: number;
+  origin: 'cloud' | 'device';
+  created_at: string;
+  task_objective: string;
+  task_status: TaskStatus;
+}
+
+/** A section the server could not check says so instead of failing the page. */
+type Checked<T> = T | { error: string };
+
+export interface RuntimeProvider {
+  name: string;
+  label: string;
+  order: number;
+  state: 'ready' | 'benched' | 'not set up';
+  kind?: 'paid' | 'free' | 'you';
+  reason?: string;
+  until?: string;
+}
+
+/** What runs this account's tasks, right now (GET /runtime/status). */
+export interface RuntimeStatus {
+  checkedAt: string;
+  ai: Checked<{ connection: string | null; gateway: string; providers: RuntimeProvider[]; model: string | null }>;
+  search: Checked<{ chosenByAccount: boolean; providers: RuntimeProvider[] }>;
+  python: Checked<{ executor: string; available: boolean; fallback: { executor: string; available: boolean } | null; files: boolean }>;
+  browser: Checked<{ available: boolean }>;
+  computers: Checked<{ total: number; connected: number }>;
+  tasks: Checked<{ days: number; total: number; byStatus: Partial<Record<TaskStatus, number>> }>;
+}
+
+export const checked = <T extends object>(v: T | { error: string } | undefined): T | null =>
+  v && !('error' in v) ? v as T : null;
