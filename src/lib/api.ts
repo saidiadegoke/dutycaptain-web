@@ -84,24 +84,62 @@ export const session = {
 
 let refreshing: Promise<boolean> | null = null;
 
-/** Exchange the refresh token for a new pair. Returns false if it could not. */
+/**
+ * Trade the refresh token for a new pair.
+ *
+ * ACROSS TABS, ONE AT A TIME. The API rotates the refresh token on every use
+ * and treats a second use of an old one as a replay — it ends the session.
+ * Two tabs whose access tokens expired together would both send the same
+ * refresh token, and the slower one would sign everybody out. So refreshes take
+ * a browser-wide lock, and a tab that gets the lock after another has already
+ * refreshed (the stored token changed while it waited) just uses the new pair.
+ */
 async function refreshSession(): Promise<boolean> {
-  const token = session.refreshToken();
-  if (!token) return false;
+  const before = session.refreshToken();
+  if (!before) return false;
 
-  const res = await fetch(`${BASE}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: token }),
-  });
-  if (!res.ok) return false;
+  const run = async () => {
+    const current = session.refreshToken();
+    if (!current) return false;
+    if (current !== before) return true; // another tab refreshed while we waited
 
-  const body = await res.json();
-  const data = body?.data;
-  if (!data?.access_token) return false;
+    const res = await fetch(`${BASE}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: current }),
+    });
+    if (!res.ok) return false;
 
-  session.save(data.access_token, data.refresh_token ?? null, data.user ?? session.user());
-  return true;
+    const body = await res.json().catch(() => null);
+    const data = body?.data;
+    if (!data?.access_token) return false;
+
+    session.save(data.access_token, data.refresh_token ?? null, data.user ?? session.user());
+    return true;
+  };
+
+  const locks = browser() ? (navigator as Navigator & { locks?: LockManager }).locks : undefined;
+  return locks ? locks.request('dc.refresh', run) : run();
+}
+
+/** One refresh per tab at a time, shared by every caller that hit a 401. */
+function refreshOnce(): Promise<boolean> {
+  refreshing = refreshing || refreshSession().finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+/**
+ * `fetch` with the session's token, refreshed and retried once on a 401 — for
+ * callers that need the raw response (a download, a file preview) rather than
+ * the JSON envelope `request` unwraps.
+ */
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const used = session.accessToken();
+  const res = await fetch(url, { ...init, headers: authHeaders(init.headers) });
+  if (res.status !== 401) return res;
+  // Refreshed elsewhere since this request left: just try again.
+  const ok = session.accessToken() !== used || await refreshOnce();
+  return ok ? fetch(url, { ...init, headers: authHeaders(init.headers) }) : res;
 }
 
 function authHeaders(extra?: HeadersInit, multipart = false): HeadersInit {
@@ -123,11 +161,12 @@ function authHeaders(extra?: HeadersInit, multipart = false): HeadersInit {
  */
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const multipart = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  const used = session.accessToken();
   const res = await fetch(`${BASE}${path}`, { ...init, headers: authHeaders(init.headers, multipart) });
 
   if (res.status === 401 && retry) {
-    refreshing = refreshing || refreshSession().finally(() => { refreshing = null; });
-    const ok = await refreshing;
+    // Another tab (or another request here) may already have refreshed.
+    const ok = session.accessToken() !== used || await refreshOnce();
     if (ok) return request<T>(path, init, false);
     session.clear();
     throw new ApiError('Your session has expired — please sign in again.', 401);
@@ -396,14 +435,14 @@ export const tasksApi = {
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
   /** A text file's contents, for a preview on the page (the first `maxChars`). */
   async artifactText(taskId: string, artifactId: string, maxChars = 200_000) {
-    const res = await fetch(this.artifactUrl(taskId, artifactId), { headers: authHeaders() });
+    const res = await authedFetch(this.artifactUrl(taskId, artifactId));
     if (!res.ok) throw new ApiError('Could not load the file', res.status);
     const text = await res.text();
     return { text: text.slice(0, maxChars), truncated: text.length > maxChars };
   },
 
   async download(taskId: string, artifactId: string, filename: string) {
-    const res = await fetch(this.artifactUrl(taskId, artifactId), { headers: authHeaders() });
+    const res = await authedFetch(this.artifactUrl(taskId, artifactId));
     if (!res.ok) throw new ApiError(`Could not download ${filename}`, res.status);
 
     const blob = await res.blob();
@@ -672,7 +711,7 @@ export function streamTaskEvents(
       });
 
       if (res.status === 401) {
-        const ok = await (refreshing || (refreshing = refreshSession().finally(() => { refreshing = null; })));
+        const ok = await refreshOnce();
         if (!ok) throw new ApiError('Session expired', 401);
         return connect(attempt); // same cursor — nothing was missed
       }
