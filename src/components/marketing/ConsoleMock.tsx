@@ -1,13 +1,9 @@
-
-const nodes = [
-{ label: 'Load catalog', state: 'done' },
-{ label: 'Resolve URLs', state: 'done' }];
-
-
-const branch = [
-{ label: 'Extract price', state: 'run' },
-{ label: 'Verify', state: 'run' },
-{ label: 'Stock', state: 'run' }];
+const steps = [
+{ label: 'Fetch last month’s orders', route: 'connected service', state: 'done', meta: '1.2s' },
+{ label: 'Analyse 12,438 orders', route: 'built-in', state: 'done', meta: '8.4s' },
+{ label: 'Build the workbook', route: 'built-in', state: 'done', meta: 'checked' },
+{ label: 'Format charts in Excel', route: 'your computer', state: 'run', meta: 'running' },
+{ label: 'Email to accountant', route: 'connected service', state: 'wait', meta: 'needs approval' }];
 
 
 const chrome: Record<string, string> = {
@@ -16,78 +12,61 @@ const chrome: Record<string, string> = {
   wait: 'border-warn-100 bg-warn-50 text-warn-700'
 };
 
-/** A compact, honest representation of the running-task view in the console. */
+const mark: Record<string, string> = { done: '✓', run: '→', wait: '○' };
+
+/** A compact, honest representation of the task detail view in the console. */
 export function ConsoleMock() {
   return (
     <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-pop">
       <div className="flex items-center justify-between border-b border-line bg-canvas px-4 py-2.5">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-brand-600" aria-hidden="true" />
-          <span className="text-[12px] font-medium text-ink-900">task_8412 · running</span>
+          <span className="text-[12px] font-medium text-ink-900">Prepare monthly sales report</span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
-          20 workers
+        <span className="tabular font-mono text-[10px] uppercase tracking-wide text-ink-500">
+          4m 12s · $0.38
         </span>
       </div>
 
       <div className="px-4 py-4">
         <div className="flex items-baseline justify-between">
           <p className="tabular text-[22px] font-semibold leading-none tracking-tight text-ink-900">
-            69%
+            72%
           </p>
-          <p className="tabular text-[11px] text-ink-500">2,418 / 3,500 SKUs</p>
+          <p className="tabular text-[11px] text-ink-500">3 of 5 steps checked</p>
         </div>
         <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-line">
-          <div className="h-full w-[69%] rounded-full bg-brand-600" />
+          <div className="h-full w-[72%] rounded-full bg-brand-600" />
         </div>
 
         <div className="mt-4 space-y-1.5">
-          {nodes.map((n) =>
+          {steps.map((s) =>
           <div
-            key={n.label}
-            className={`flex items-center justify-between rounded border px-2.5 py-1.5 text-[11px] ${chrome[n.state]}`}>
-            
-              <span className="font-medium">{n.label}</span>
-              <span className="font-mono text-[10px]">done</span>
+            key={s.label}
+            className={`flex items-center justify-between gap-3 rounded border px-2.5 py-1.5 text-[11px] ${chrome[s.state]}`}>
+
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="font-mono text-[10px]" aria-hidden="true">{mark[s.state]}</span>
+                <span className="truncate font-medium">{s.label}</span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="hidden font-mono text-[10px] text-ink-400 sm:inline">{s.route}</span>
+                <span className="font-mono text-[10px]">{s.meta}</span>
+              </span>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-1.5">
-            {branch.map((n) =>
-            <div
-              key={n.label}
-              className={`rounded border px-2 py-1.5 text-[11px] font-medium ${chrome[n.state]}`}>
-              
-                {n.label}
-              </div>
-            )}
-          </div>
-          <div
-            className={`flex items-center justify-between rounded border px-2.5 py-1.5 text-[11px] ${chrome.wait}`}>
-            
-            <span className="font-medium">Human approval</span>
-            <span className="font-mono text-[10px]">3,487 changes</span>
-          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-10 gap-1" aria-hidden="true">
-          {Array.from({ length: 20 }).map((_, i) =>
+        <div className="mt-4 flex flex-wrap gap-1.5" aria-hidden="true">
+          {['Pause', 'Take control', 'Stop'].map((b) =>
           <span
-            key={i}
-            className={`h-4 rounded-sm border ${
-            i === 11 ?
-            'border-danger-100 bg-danger-50' :
-            i === 3 ?
-            'border-warn-100 bg-warn-50' :
-            i === 7 || i === 16 ?
-            'border-line bg-canvas' :
-            'border-brand-200 bg-brand-50'}`
-            } />
+            key={b}
+            className="rounded border border-line bg-canvas px-2 py-1 text-[10px] font-medium text-ink-700">
 
+              {b}
+            </span>
           )}
         </div>
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-ink-400">
-          Playwright worker fleet
-        </p>
       </div>
     </div>);
 

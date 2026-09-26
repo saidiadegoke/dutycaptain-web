@@ -14,8 +14,8 @@ export function Pricing() {
     <>
       <PageHeader
         eyebrow="Pricing"
-        title="A platform licence, plus the compute you already own"
-        lede="No per-token billing and no per-bot licences. A task that makes ten thousand model calls costs the same as one that makes ten, because inference runs on your hardware." />
+        title="Plans for one person, a team, or an organisation"
+        lede="DutyCaptain is in early access. Prices will be published before general availability; until then, here is what each plan includes and who it is for." />
       
 
       <Section tone="light">
@@ -45,9 +45,6 @@ export function Pricing() {
                     <span className="tabular text-[28px] font-semibold leading-none tracking-tight text-ink-900">
                       {plan.price}
                     </span>
-                    {plan.period &&
-                  <span className="text-[13px] text-ink-500">{plan.period}</span>
-                  }
                   </p>
                   <p className="mt-1.5 text-[12px] text-ink-500">{plan.detail}</p>
                 </div>
@@ -64,7 +61,7 @@ export function Pricing() {
                 )}
                 </ul>
 
-                <Link href="/company"
+                <Link href="/company#contact"
                 className={`mt-8 block rounded-md px-3 py-2.5 text-center text-[13px] font-medium transition-colors duration-150 ease-out ${
                 plan.featured ?
                 'bg-brand-600 text-white hover:bg-brand-500' :
@@ -82,28 +79,28 @@ export function Pricing() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
             <div>
               <h2 className="text-[18px] font-semibold tracking-tight text-ink-900">
-                What the compute actually costs
+                You stay in control of what you spend
               </h2>
               <p className="mt-2.5 max-w-xl text-[14px] leading-relaxed text-ink-700">
-                The MVP stack — Qwen3-14B for planning and browsing, Qwen2.5-VL-7B for vision —
-                fits on one A40 48GB. Browser workers run as CPU containers, so the GPU is only
-                serving models.
+                Whatever the final prices, cost will never be a surprise. Every task shows what it
+                has cost as it runs, and every task can be given limits that are enforced rather
+                than advisory.
               </p>
               <p className="mt-2.5 max-w-xl text-[14px] leading-relaxed text-ink-500">
-                Scale by adding worker containers first, and a second GPU only when planning and
-                vision start queueing behind each other.
+                Choosing the simplest reliable route for each step — and the most economical AI
+                model that can do it — is what keeps tasks inexpensive in the first place.
               </p>
             </div>
             <dl className="space-y-3 rounded-lg border border-line bg-panel p-5">
               {[
-              ['A40 48GB pod', '$0.49 / hr'],
-              ['Running continuously', '≈ $353 / mo'],
-              ['Typical dev usage', '< $100 / mo'],
-              ['Model calls', 'unmetered']].
+              ['Cost of each task', 'shown live'],
+              ['Spend limit', 'per task'],
+              ['Time and step limits', 'per task'],
+              ['At a limit', 'pauses and asks']].
               map(([k, v]) =>
               <div key={k} className="flex items-baseline justify-between gap-4">
                   <dt className="text-[13px] text-ink-500">{k}</dt>
-                  <dd className="tabular text-[14px] font-semibold text-ink-900">{v}</dd>
+                  <dd className="text-[14px] font-semibold text-ink-900">{v}</dd>
                 </div>
               )}
             </dl>
@@ -114,8 +111,8 @@ export function Pricing() {
       <Section tone="canvas">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-16">
           <SectionHeading
-            title="Questions we get before a pilot"
-            lede="If yours is not here, ask us directly — we answer scoping questions before anything is signed." />
+            title="Questions about plans"
+            lede="If yours is not here, ask us directly. We answer before anything is agreed." />
           
           <div className="divide-y divide-line border-y border-line">
             {pricingFaq.map((item) => {
@@ -149,8 +146,9 @@ export function Pricing() {
       </Section>
 
       <CTABand
-        title="Pilots start with one workflow, on your hardware"
-        body="Thirty days, one task, the full approval and audit model. If it does not pay for itself we will tell you." />
+        title="Early access starts with one task"
+        body="Tell us the routine you would hand over first. We will set it up with you and let you know as each new release arrives."
+        primary={{ to: '/company', label: 'Join early access' }} />
       
     </>);
 

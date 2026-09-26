@@ -22,6 +22,12 @@ WORKDIR /app
 # no --build-arg still produces a working image.
 ARG NEXT_PUBLIC_API_URL=https://api.dutycaptain.com
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# The site's own public address: canonical URLs, sitemap and link previews.
+ARG NEXT_PUBLIC_SITE_URL=https://dutycaptain.com
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# "true" keeps this build out of search results (staging).
+ARG NEXT_PUBLIC_NOINDEX=false
+ENV NEXT_PUBLIC_NOINDEX=${NEXT_PUBLIC_NOINDEX}
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

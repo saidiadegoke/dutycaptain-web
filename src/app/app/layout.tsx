@@ -1,5 +1,9 @@
 import { AppShell } from '@/components/shell/AppShell';
+import type { Metadata } from 'next';
 import { AuthGate } from '@/components/AuthGate';
+import { NOINDEX } from '@/lib/seo';
+
+export const metadata: Metadata = { title: 'Console', robots: NOINDEX };
 
 /**
  * Layout for the console at `/app/*`. Unlike `(marketing)`, `app` is a real
@@ -10,8 +14,10 @@ import { AuthGate } from '@/components/AuthGate';
  */
 export default function ConsoleLayout({ children }: {children: React.ReactNode;}) {
   return (
-    <AppShell>
-      <AuthGate>{children}</AuthGate>
-    </AppShell>);
+    // The gate outside the shell: a signed-out visitor is sent to /signin
+    // without the console's sidebar ever appearing.
+    <AuthGate>
+      <AppShell>{children}</AppShell>
+    </AuthGate>);
 
 }

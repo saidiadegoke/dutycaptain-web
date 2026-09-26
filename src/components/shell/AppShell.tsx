@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, session } from '@/lib/api';
+import { approvalsApi, auth, configApi, devicesApi, session } from '@/lib/api';
 import type { SessionUser } from '@/lib/types';
+import { VerifyEmailBanner } from '@/components/VerifyEmailBanner';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ActivityIcon,
-  BellIcon,
   CpuIcon,
   FileBoxIcon,
   GaugeIcon,
@@ -16,17 +16,24 @@ import {
   ListChecksIcon,
   PlusIcon,
   ScrollTextIcon,
+  SettingsIcon,
   ShieldCheckIcon } from
 'lucide-react';
 
 const nav = [
 { to: '/app', label: 'Overview', icon: GaugeIcon, end: true },
 { to: '/app/tasks', label: 'Tasks', icon: ListChecksIcon },
-{ to: '/app/approvals', label: 'Approvals', icon: ShieldCheckIcon, badge: 3 },
+{ to: '/app/approvals', label: 'Approvals', icon: ShieldCheckIcon, countsApprovals: true },
 { to: '/app/artifacts', label: 'Artifacts', icon: FileBoxIcon },
 { to: '/app/models', label: 'Runtime', icon: CpuIcon },
 { to: '/app/devices', label: 'Computers', icon: LaptopIcon },
-{ to: '/app/audit', label: 'Audit trail', icon: ScrollTextIcon }];
+{ to: '/app/audit', label: 'Audit trail', icon: ScrollTextIcon },
+// Every account has settings of its own (search providers); admins also see the platform's there.
+{ to: '/app/settings', label: 'Settings', icon: SettingsIcon }];
+
+
+/** How often the sidebar re-reads counts and health. */
+const REFRESH_MS = 30_000;
 
 
 /** Initials for the avatar, falling back to the email when there is no name. */
@@ -52,7 +59,8 @@ const crumbs: Record<string, string> = {
   '/app/models': 'Runtime',
   '/app/audit': 'Audit trail',
   '/app/tasks/new': 'Tasks / New task',
-  '/app/signin': 'Sign in'
+  '/app/devices': 'Computers',
+  '/app/settings': 'Settings'
 };
 
 export function AppShell({ children }: {children: React.ReactNode;}) {
@@ -69,6 +77,39 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
     window.addEventListener('dc:session', sync);
     return () => window.removeEventListener('dc:session', sync);
   }, []);
+
+  // Real numbers or nothing: the approvals badge, the health dot and the
+  // computers line each come from the API, and are hidden until they have.
+  const [pending, setPending] = useState<number | null>(null);
+  const [healthy, setHealthy] = useState<boolean | null>(null);
+  const [computers, setComputers] = useState<{connected: number;total: number;} | null>(null);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let live = true;
+    const load = async () => {
+      const [ok, approvals, devices] = await Promise.all([
+      configApi.healthy(),
+      approvalsApi.list().catch(() => null),
+      devicesApi.list().catch(() => null)]
+      );
+      if (!live) return;
+      setHealthy(ok);
+      if (approvals) setPending(approvals.length);
+      if (devices) setComputers({ connected: devices.filter((d) => d.connected).length, total: devices.length });
+    };
+    load();
+    const timer = setInterval(load, REFRESH_MS);
+    return () => {
+      live = false;
+      clearInterval(timer);
+    };
+  }, [user, pathname]);
+
+  const signOut = () => {
+    auth.signOut();
+    router.replace('/signin');
+  };
 
   /**
    * react-router's NavLink supplied `isActive`; next/link does not, so the
@@ -116,9 +157,12 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
                 
                   <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.9} />
                   <span className="flex-1 whitespace-nowrap">{item.label}</span>
-                  {item.badge &&
-                <span className="rounded bg-warn-600 px-1.5 py-[1px] text-[10px] font-semibold text-white">
-                      {item.badge}
+                  {'countsApprovals' in item && pending !== null && pending > 0 &&
+                <span
+                  className="rounded bg-warn-600 px-1.5 py-[1px] text-[10px] font-semibold text-white"
+                  aria-label={`${pending} waiting for approval`}>
+                  
+                      {pending}
                     </span>
                 }
                 </Link>
@@ -128,12 +172,17 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
         </nav>
 
         <div className="border-t border-shell-line px-5 py-4">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-shell-text">
-            Self-hosted · A40 48GB
-          </p>
-          <p className="mt-1 text-[11px] text-shell-text">
-            3 models loaded · 20 workers
-          </p>
+          <p className="truncate text-[12px] font-medium text-white">{displayName(user)}</p>
+          {user?.email &&
+          <p className="mt-0.5 truncate text-[11px] text-shell-text">{user.email}</p>
+          }
+          {computers &&
+          <Link href="/app/devices" className="mt-2 block text-[11px] text-shell-text hover:text-white">
+              {computers.total === 0 ?
+            'No computer connected' :
+            `${computers.connected} of ${computers.total} computer${computers.total === 1 ? '' : 's'} online`}
+            </Link>
+          }
         </div>
       </aside>
 
@@ -141,36 +190,40 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b border-line bg-panel/90 px-5 backdrop-blur lg:px-8">
           <p className="truncate text-[13px] font-medium text-ink-700">{crumb}</p>
           <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-1.5 rounded-md border border-ok-100 bg-ok-50 px-2 py-1 text-[11px] font-medium text-ok-700 sm:inline-flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-ok-600" aria-hidden="true" />
-              Runtime healthy
-            </span>
-            <button
-              type="button"
-              className="relative rounded-md border border-line bg-panel p-1.5 text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas"
-              aria-label="Notifications">
+            {healthy !== null &&
+            <span
+              className={`hidden items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium sm:inline-flex ${
+              healthy ? 'border-ok-100 bg-ok-50 text-ok-700' : 'border-danger-100 bg-danger-50 text-danger-700'}`
+              }>
               
-              <BellIcon className="h-4 w-4" strokeWidth={1.9} />
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warn-600" />
-            </button>
-            <div className="flex items-center gap-2 border-l border-line pl-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900 text-[11px] font-semibold text-white">
-                {initials(user)}
+                <span
+                className={`h-1.5 w-1.5 rounded-full ${healthy ? 'bg-ok-600' : 'bg-danger-600'}`}
+                aria-hidden="true" />
+              
+                {healthy ? 'Connected' : 'Cannot reach DutyCaptain'}
               </span>
-              <div className="hidden leading-tight sm:block">
-                <p className="text-[12px] font-medium text-ink-900">{displayName(user)}</p>
-                <button
+            }
+            {user &&
+            <div className="flex items-center gap-2 border-l border-line pl-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-900 text-[11px] font-semibold text-white">
+                  {initials(user)}
+                </span>
+                <div className="hidden leading-tight sm:block">
+                  <p className="text-[12px] font-medium text-ink-900">{displayName(user)}</p>
+                  <button
                   type="button"
-                  onClick={() => { auth.signOut(); router.replace('/app/signin'); }}
+                  onClick={signOut}
                   className="text-[11px] text-ink-500 underline-offset-2 hover:text-ink-900 hover:underline">
                   
-                  Sign out
-                </button>
+                    Sign out
+                  </button>
+                </div>
               </div>
-            </div>
+            }
           </div>
         </header>
 
+        <VerifyEmailBanner user={user} />
         <main className="flex-1 px-5 py-6 lg:px-8">{children}</main>
       </div>
     </div>);

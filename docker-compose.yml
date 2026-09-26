@@ -7,6 +7,8 @@ services:
         # Inlined into the client bundle at build time — change this and
         # rebuild (`docker compose build`) for it to take effect.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://dutycaptain.com}
+        NEXT_PUBLIC_NOINDEX: ${NEXT_PUBLIC_NOINDEX:-false}
         PORT: ${PORT:-9821}
     container_name: dutycaptain-web
     environment:

@@ -1,43 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CheckIcon, MailIcon, MapPinIcon } from 'lucide-react';
+import { MailIcon, MapPinIcon } from 'lucide-react';
 import { PageHeader, Section, SectionHeading } from '@/components/marketing/Section';
+import { EarlyAccessForm } from '@/components/marketing/EarlyAccessForm';
+import { CONTACT_EMAIL } from '@/lib/seo';
 import { principles } from '@/data/marketing';
 
 const engagement = [
 {
-  title: 'Scoping call',
-  body: 'We look at one process you do by hand and decide together whether the runtime is a fit. Honest answer either way.'
+  title: 'Tell us the task',
+  body: 'We look at one routine you do by hand and decide together whether DutyCaptain suits it. An honest answer either way.'
 },
 {
-  title: 'Pilot on your hardware',
-  body: 'We deploy the MVP stack on your pod, wire one connector, and run the task end to end with approvals on.'
+  title: 'Set it up together',
+  body: 'We open your account, connect what the task needs — and the companion program, if it touches your computer — and run it with you, approvals on.'
 },
 {
-  title: 'Hand over the console',
-  body: 'Your operators run and supervise tasks themselves. We stay on for connector work and new workflows.'
+  title: 'Hand it over',
+  body: 'You run and supervise tasks yourself. We stay close, and tell you as each new release arrives.'
 }];
 
 
 export function Company() {
-  const [sent, setSent] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', company: '', task: '' });
-
-  const valid = form.name.trim() !== '' && form.email.includes('@') && form.task.trim() !== '';
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (valid) setSent(true);
-  }
-
   return (
     <>
       <PageHeader
         eyebrow="Company"
-        title="We build the runtime, not another model"
-        lede="Anyone can download Qwen. The hard part is everything around it: persistent browser sessions, vision-guided automation, a distributed scheduler, retry and recovery, approval checkpoints, and a record of every decision." />
+        title="We build the part that gets the work done"
+        lede="AI models are improving quickly and are available to everyone. What is hard is everything around them: choosing the right route for each step, checking the result, asking before anything consequential, and keeping a record that can be trusted." />
       
 
       <Section tone="light">
@@ -45,18 +35,20 @@ export function Company() {
           <div>
             <SectionHeading
               title="Why we started here"
-              lede="We kept meeting operations teams whose most expensive work was mechanical: someone opening four retailer sites for three thousand SKUs, someone re-keying a stack of scanned invoices, someone checking a price board every morning at eight." />
+              lede="We kept meeting people whose most expensive hours went to mechanical work: rebuilding the same monthly report, re-keying invoices, checking the same websites, chasing the same records across several systems." />
             
             <div className="mt-6 max-w-2xl space-y-4 text-[15px] leading-relaxed text-ink-700">
               <p>
-                General-purpose assistants do not solve that. The work needs a browser that stays
-                logged in, a model that can read a page when the selectors break, a scheduler that
-                can hold thousands of steps, and a human gate before anything is published.
+                The tools available solved only part of it. Assistants explained the steps but left
+                the work to the person. Automation tools needed every routine designed in advance.
+                Tools that imitate a person at a screen could reach anything, but were slow, easily
+                confused, and impossible to check.
               </p>
               <p>
-                So we built an agent operating system for measurable business tasks first, and left
-                the general assistant for later. Models are interchangeable — we expect to swap
-                them as better open weights ship. The workflow engine is the part that compounds.
+                So we built DutyCaptain: give it a task in plain language, and it completes the task
+                by the most reliable route available, proves the work was done, and asks before
+                anything that matters. AI models are interchangeable, and DutyCaptain works with
+                several. The way work is carried out and checked is the part that lasts.
               </p>
             </div>
 
@@ -97,15 +89,15 @@ export function Company() {
               <ul className="mt-4 space-y-3 text-[13px]">
                 <li className="flex items-center gap-2.5 text-ink-700">
                   <MailIcon className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={2} />
-                  ops@dutycaptain.io
+                  <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-ink-900">{CONTACT_EMAIL}</a>
                 </li>
                 <li className="flex items-center gap-2.5 text-ink-700">
                   <MapPinIcon className="h-3.5 w-3.5 shrink-0 text-ink-400" strokeWidth={2} />
-                  Lagos, Nigeria · remote team
+                  HelloWorld Technologies · remote team
                 </li>
               </ul>
               <p className="mt-4 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-500">
-                Scoping calls are run by the engineers who would deploy your pilot, not a sales
+                Early-access calls are run by the people who build DutyCaptain, not a sales
                 team.
               </p>
             </div>
@@ -116,100 +108,11 @@ export function Company() {
       <Section tone="canvas" id="contact">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <SectionHeading
-            title="Book a demo"
-            lede="Tell us the task you would hand over first. We will run the scoping call against that specific process, with the console open." />
+            title="Join early access"
+            lede="Tell us the task you would hand over first. We will talk it through against that specific routine, with the console open." />
           
 
-          {sent ?
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-            className="rounded-xl border border-ok-100 bg-ok-50 p-6">
-            
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ok-600">
-                <CheckIcon className="h-4 w-4 text-white" strokeWidth={3} />
-              </span>
-              <h3 className="mt-4 text-[16px] font-semibold tracking-tight text-ok-700">
-                Request received
-              </h3>
-              <p className="mt-2 max-w-md text-[14px] leading-relaxed text-ok-700">
-                We will reply within one business day with two times and a short list of questions
-                about the process you described.
-              </p>
-            </motion.div> :
-
-          <form
-            onSubmit={submit}
-            className="rounded-xl border border-line bg-panel p-6 shadow-panel">
-            
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="name" className="block text-[12px] font-medium text-ink-900">
-                    Name
-                  </label>
-                  <input
-                  id="name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1.5 w-full rounded-md border border-line bg-canvas px-3 py-2 text-[13px] text-ink-900 focus:border-brand-500 focus:bg-panel focus:outline-none"
-                  placeholder="Adaeze Bello" />
-                
-                </div>
-                <div>
-                  <label htmlFor="email" className="block text-[12px] font-medium text-ink-900">
-                    Work email
-                  </label>
-                  <input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="mt-1.5 w-full rounded-md border border-line bg-canvas px-3 py-2 text-[13px] text-ink-900 focus:border-brand-500 focus:bg-panel focus:outline-none"
-                  placeholder="you@company.com" />
-                
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <label htmlFor="company" className="block text-[12px] font-medium text-ink-900">
-                  Company
-                </label>
-                <input
-                id="company"
-                value={form.company}
-                onChange={(e) => setForm({ ...form, company: e.target.value })}
-                className="mt-1.5 w-full rounded-md border border-line bg-canvas px-3 py-2 text-[13px] text-ink-900 focus:border-brand-500 focus:bg-panel focus:outline-none"
-                placeholder="SmartStore" />
-              
-              </div>
-
-              <div className="mt-4">
-                <label htmlFor="task" className="block text-[12px] font-medium text-ink-900">
-                  The task you would hand over first
-                </label>
-                <textarea
-                id="task"
-                rows={4}
-                value={form.task}
-                onChange={(e) => setForm({ ...form, task: e.target.value })}
-                className="mt-1.5 w-full resize-none rounded-md border border-line bg-canvas px-3 py-2 text-[13px] leading-relaxed text-ink-900 focus:border-brand-500 focus:bg-panel focus:outline-none"
-                placeholder="e.g. checking competitor prices for 3,500 SKUs across four retailers every Monday" />
-              
-              </div>
-
-              <button
-              type="submit"
-              disabled={!valid}
-              className="mt-5 w-full rounded-md bg-brand-600 px-3 py-2.5 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-ink-500">
-              
-                Request a scoping call
-              </button>
-              <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
-                We use this only to prepare the call. No sequences, no newsletter.
-              </p>
-            </form>
-          }
+          <EarlyAccessForm source="/company" />
         </div>
       </Section>
     </>);

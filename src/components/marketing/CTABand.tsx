@@ -11,7 +11,7 @@ interface CTABandProps {
 export function CTABand({
   title,
   body,
-  primary = { to: '/company', label: 'Book a demo' },
+  primary = { to: '/company#contact', label: 'Join early access' },
   secondary = { to: '/app', label: 'Explore the console' }
 }: CTABandProps) {
   return (

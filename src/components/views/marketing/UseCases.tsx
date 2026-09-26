@@ -5,14 +5,14 @@ import { CTABand } from '@/components/marketing/CTABand';
 import { useCases } from '@/data/marketing';
 
 const timeline = [
-['Load 3,500 SKUs', 'Planner'],
-['Find retailer URLs', 'Search agent'],
-['Visit product pages', '20 Playwright workers'],
-['Read prices', 'Vision agent'],
-['Validate outliers', 'Qwen3-14B'],
-['Produce Excel audit', 'File agent'],
-['Await approval', 'Human'],
-['Update SmartStore', 'Connector agent']];
+['Plan the task', 'DutyCaptain'],
+['Fetch last month’s orders', 'Connected service'],
+['Analyse the orders', 'Built-in tools'],
+['Build the workbook', 'Built-in tools'],
+['Check the workbook', 'Reopened and confirmed'],
+['Format charts in Excel', 'Your computer'],
+['Await approval', 'You'],
+['Email to accountant', 'Connected service']];
 
 
 export function UseCases() {
@@ -23,15 +23,15 @@ export function UseCases() {
     <>
       <PageHeader
         eyebrow="Use cases"
-        title="Work that is measurable, repetitive, and currently done by hand"
-        lede="We build for tasks with a number attached — SKUs priced, invoices read, hours returned to the team. Here is what operations teams run first." />
+        title="Routine work, handed over with confidence"
+        lede="For professionals, small teams and operations departments alike: the necessary, repetitive work that fills a week. Here is what people hand over first." />
       
 
       <Section tone="light">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_minmax(0,0.9fr)] lg:gap-16">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-wider text-brand-700">
-              Most common first task · {featured.industry}
+              A common first task · {featured.industry}
             </p>
             <h2 className="mt-3 text-[28px] font-semibold leading-tight tracking-tight text-ink-900 lg:text-[32px]">
               {featured.name}
@@ -53,7 +53,7 @@ export function UseCases() {
 
           <figure className="rounded-xl border border-line bg-panel p-6 shadow-panel">
             <figcaption className="text-[12px] font-semibold text-ink-700">
-              Execution timeline · one run
+              The steps · one run
             </figcaption>
             <ol className="mt-4">
               {timeline.map(([stage, worker], i) =>
@@ -77,7 +77,7 @@ export function UseCases() {
               )}
             </ol>
             <p className="border-t border-line pt-4 text-[12px] leading-relaxed text-ink-500">
-              3,500 products · 20 workers · ~8 seconds per product · 25–35 minutes total.
+              One instruction · eight steps · one approval · every step checked and recorded.
             </p>
           </figure>
         </div>
@@ -85,8 +85,8 @@ export function UseCases() {
 
       <Section tone="canvas">
         <SectionHeading
-          title="Also running in production"
-          lede="Each of these started as one manual process someone was doing every week." />
+          title="More tasks people hand over"
+          lede="Each of these is one routine someone does by hand today, reached by whichever route suits it best." />
         
 
         <div className="mt-10 space-y-px overflow-hidden rounded-xl border border-line bg-line">
@@ -127,7 +127,7 @@ export function UseCases() {
           <Link href="/developers"
             className="inline-flex items-center gap-1.5 text-[14px] font-medium text-brand-700 transition-colors duration-150 ease-out hover:text-brand-500">
             
-            Define your own workflow in YAML or TypeScript
+            Start tasks from your own systems
             <ArrowRightIcon className="h-4 w-4" strokeWidth={2.2} />
           </Link>
         </div>
@@ -137,16 +137,16 @@ export function UseCases() {
         <SectionHeading
           title="Is your process a good fit?"
           align="center"
-          lede="The tasks that work best share a shape. If three of these are true, it is worth a pilot." />
+          lede="The tasks that suit DutyCaptain best share a shape. If three of these are true, it is worth trying." />
         
         <ul className="mx-auto mt-9 grid max-w-3xl grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2">
           {[
-          'Someone repeats it weekly or daily',
-          'It involves a website with no usable API',
-          'The inputs are PDFs, scans or spreadsheets',
-          'Volume is in the hundreds or thousands',
-          'Mistakes are expensive enough to need review',
-          'The output is a file, a price, or a record update'].
+          'Someone repeats it weekly or monthly',
+          'It gathers information from several places',
+          'The inputs are documents, scans or spreadsheets',
+          'It touches a website or an application with no connection',
+          'Mistakes matter enough to want a review first',
+          'The result is a file, a message, or an updated record'].
           map((item) =>
           <li key={item} className="bg-panel px-5 py-4 text-[14px] text-ink-700">
               {item}
@@ -157,7 +157,7 @@ export function UseCases() {
 
       <CTABand
         title="Tell us the task you would hand over first"
-        body="We scope it against the runtime, tell you honestly whether it is a fit, and run a pilot on your hardware." />
+        body="We will tell you honestly whether DutyCaptain suits it, and set it up with you during early access." />
       
     </>);
 

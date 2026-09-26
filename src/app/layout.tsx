@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from '@/lib/seo';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -22,13 +23,31 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'DutyCaptain',
-    template: '%s · DutyCaptain'
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s · ${SITE_NAME}`
   },
-  description:
-  'An autonomous execution layer that selects the right actuator for each step of a step — native calls, APIs, browser automation, or your own computer.',
-  robots: { index: false, follow: false }
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  creator: 'HelloWorld Technologies',
+  publisher: 'HelloWorld Technologies',
+  openGraph: {
+    siteName: SITE_NAME,
+    type: 'website',
+    locale: 'en_GB',
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION
+  },
+  robots: INDEXABLE ?
+  { index: true, follow: true, googleBot: { index: true, follow: true, 'max-image-preview': 'large' } } :
+  { index: false, follow: false },
+  formatDetection: { telephone: false, email: false, address: false }
 };
 
 export default function RootLayout({ children }: {children: React.ReactNode;}) {

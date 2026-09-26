@@ -87,3 +87,30 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Tailwind v4 no longer gives buttons a pointer cursor. Everything that can be
+ * clicked gets one here, once, rather than a `cursor-pointer` on every element.
+ */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label[for],
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='submit']:not(:disabled),
+  input[type='button']:not(:disabled),
+  input[type='file']:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'],
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}

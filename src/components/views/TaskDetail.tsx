@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
   PauseIcon,
@@ -11,6 +11,8 @@ import {
   AlertTriangleIcon } from
 'lucide-react';
 import { Panel } from '@/components/Panel';
+import { RetryDialog } from '@/components/views/RetryDialog';
+import { SearchRequestCard } from '@/components/SearchRequestCard';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { PlanHistory } from '@/components/PlanHistory';
 import { ModelContext } from '@/components/ModelContext';
@@ -21,8 +23,11 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { CapabilityTag, TaskStatusBadge, StepStatusBadge } from '@/components/StatusBadge';
 import { tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
-import type { Observation, Step, TaskDetail as TaskDetailType } from '@/lib/types';
-import { ShieldCheckIcon, ShieldAlertIcon, RotateCwIcon, ArrowUpRightIcon } from 'lucide-react';
+import type { Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
+import { ShieldCheckIcon, ShieldAlertIcon, RotateCwIcon, ArrowUpRightIcon,
+  PencilIcon,
+  RotateCcwIcon
+} from 'lucide-react';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { pct } from '@/utils/format';
 
@@ -43,6 +48,25 @@ import { pct } from '@/utils/format';
  * reconnecting, or ended while the task is still active. Without it a dropped
  * connection would freeze the page silently, which is worse than a poll.
  */
+/**
+ * A heading a person can read. The code stays beside it, small, for whoever
+ * has to look it up.
+ */
+const FAILURE_TITLES: Record<string, string> = {
+  AI_PROVIDER_UNAVAILABLE: 'The AI service is unavailable',
+  AI_GATEWAY_UNREACHABLE: 'The AI service could not be reached',
+  AI_GATEWAY_UNCONFIGURED: 'The AI service is not set up',
+  AI_PROVIDER_ERROR: 'The AI provider refused the request',
+  AI_GATEWAY_REJECTED: 'The AI service refused the request',
+  RUNNER_CRASHED: 'Something went wrong on our side',
+  NO_USABLE_PROPOSAL: 'The AI could not decide on a next step',
+  MODEL_DECLARED_FAILURE: 'The AI judged the task could not be done'
+};
+
+function failureTitle(code?: string | null) {
+  return (code && FAILURE_TITLES[code]) || 'The task failed';
+}
+
 export function TaskDetail() {
   const params = useParams();
   const taskId = String(params.taskId);
@@ -52,6 +76,9 @@ export function TaskDetail() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [retryMode, setRetryMode] = useState<'retry' | 'edit' | null>(null);
+  const [searches, setSearches] = useState<SearchRequest[]>([]);
+  const router = useRouter();
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setState('loading');
@@ -65,6 +92,18 @@ export function TaskDetail() {
   }, [taskId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Searches waiting for the owner: read whenever the task is paused for one.
+  const status = task?.status;
+  useEffect(() => {
+    if (status !== 'waiting_for_input') {
+      setSearches([]);
+      return;
+    }
+    tasksApi.searchRequests(taskId).
+    then((all) => setSearches(all.filter((r) => r.status === 'pending'))).
+    catch(() => setSearches([]));
+  }, [status, taskId]);
 
   const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
   const lastSeq = events.length ? events[events.length - 1].seq : 0;
@@ -155,7 +194,25 @@ export function TaskDetail() {
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => setRetryMode('retry')}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
+            
+            <RotateCcwIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
+            Retry
+          </button>
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => setRetryMode('edit')}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 transition-colors duration-150 ease-out hover:bg-canvas disabled:opacity-60">
+            
+            <PencilIcon className="h-3.5 w-3.5" strokeWidth={2.2} />
+            Edit and retry
+          </button>
           {canPause &&
           <button
             type="button"
@@ -192,6 +249,75 @@ export function TaskDetail() {
         </div>
       </div>
 
+      {((task.attempt ?? 1) > 1 || (task.retries && task.retries.length > 0)) &&
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">
+          {(task.attempt ?? 1) > 1 &&
+        <span>
+              <span className="font-medium text-ink-900">Attempt {task.attempt}</span>
+              {task.retry_of &&
+          <>
+                  {' · retry of '}
+                  <Link href={`/app/tasks/${task.retry_of}`} className="text-brand-700 hover:text-brand-500">
+                    attempt {(task.attempt ?? 2) - 1}
+                  </Link>
+                </>
+          }
+              {task.retry &&
+          <span className="text-ink-500">
+                  {task.retry.learned_from.length ?
+            ` · learned from attempt${task.retry.learned_from.length > 1 ? 's' : ''} ${[...task.retry.learned_from].sort((a, b) => a - b).join(', ')}` :
+            ' · started fresh'}
+                  {task.retry.objective_changed ? ' · task reworded' : ''}
+                </span>
+          }
+            </span>
+        }
+          {task.retries && task.retries.length > 0 &&
+        <span>
+              Retried as{' '}
+              {task.retries.map((r, i) =>
+          <span key={r.id}>
+                  {i > 0 && ', '}
+                  <Link href={`/app/tasks/${r.id}`} className="font-medium text-brand-700 hover:text-brand-500">
+                    attempt {r.attempt}
+                  </Link>
+                  <span className="text-ink-500"> ({r.status.replace(/_/g, ' ')})</span>
+                </span>
+          )}
+            </span>
+        }
+          {task.retry?.note &&
+        <span className="basis-full text-ink-500">
+              <span className="font-medium text-ink-700">Note for this attempt:</span> {task.retry.note}
+            </span>
+        }
+        </div>
+      }
+
+      {searches.map((r) =>
+      <SearchRequestCard
+        key={r.id}
+        taskId={task.id}
+        request={r}
+        onDone={() => {
+          setSearches((all) => all.filter((x) => x.id !== r.id));
+          load(true);
+        }} />
+      )}
+
+      {retryMode &&
+      <RetryDialog
+        taskId={task.id}
+        objective={task.objective}
+        active={!isTerminal(task.status)}
+        edit={retryMode === 'edit'}
+        onClose={() => setRetryMode(null)}
+        onRetried={(id) => {
+          setRetryMode(null);
+          router.push(`/app/tasks/${id}`);
+        }} />
+      }
+
       {actionError &&
       <p role="alert" className="mt-3 rounded-md border border-warn-100 bg-warn-50 px-3 py-2 text-[12px] text-warn-700">
           {actionError}
@@ -200,8 +326,8 @@ export function TaskDetail() {
 
       {task.status === 'waiting_for_approval' &&
       <p className="mt-3 rounded-md border border-warn-100 bg-warn-50 px-3 py-2 text-[12px] text-warn-700">
-          This task is waiting for an approval. Approvals arrive in Phase 3 — until then it
-          can only be cancelled.
+          This task is waiting for your approval.{' '}
+          <Link href="/app/approvals" className="font-medium underline">Review it in Approvals</Link>.
         </p>
       }
 
@@ -210,7 +336,10 @@ export function TaskDetail() {
           <AlertTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger-700" strokeWidth={2.2} />
           <div>
             <p className="text-[12px] font-medium text-danger-700">
-              {task.error.code || 'Failed'}
+              {failureTitle(task.error.code)}
+              {task.error.code &&
+            <span className="ml-2 font-mono text-[10px] font-normal text-danger-700/70">{task.error.code}</span>
+            }
             </p>
             <p className="mt-0.5 text-[12px] text-danger-700">{task.error.message}</p>
           </div>

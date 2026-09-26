@@ -20,6 +20,7 @@ export type TaskStatus =
   | 'waiting_for_approval'
   | 'waiting_for_device'
   | 'waiting_for_budget'
+  | 'waiting_for_input'
   | 'paused'
   | 'done'
   | 'failed'
@@ -152,6 +153,12 @@ export interface Task {
   plan_version: number;
   budget: TaskBudget;
   error: { code?: string; message?: string } | null;
+  /** 1 for an original; 2+ for a retry. */
+  attempt?: number;
+  /** The attempt this one retried, if it is a retry. */
+  retry_of?: string | null;
+  /** What a retry carried: the user's note, and which attempts it learned from. */
+  retry?: { note: string | null; learned_from: number[]; objective_changed: boolean };
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
@@ -174,6 +181,8 @@ export interface TaskDetail extends Task {
   state?: Record<string, unknown>;
   steps: Step[];
   artifacts: Artifact[];
+  /** Later attempts made from this one, oldest first. */
+  retries?: { id: string; attempt: number; status: TaskStatus; created_at: string }[];
 }
 
 /**
@@ -406,6 +415,18 @@ export interface SessionUser {
   email?: string;
   first_name?: string;
   last_name?: string;
+  role?: string | null;
+  roles?: string[];
+  /** Emails (task needs you, approvals) are only sent to a verified address. */
+  email_verified?: boolean;
+}
+
+/** `GET /notifications/preferences` — the email switches this console shows. */
+export interface NotificationPreferences {
+  tasks_email: boolean;
+  approvals_email: boolean;
+  devices_email: boolean;
+  [key: string]: unknown;
 }
 
 /** Statuses from which nothing follows. Mirrors the orchestrator's own list. */
@@ -413,9 +434,40 @@ export const TERMINAL: TaskStatus[] = ['done', 'failed', 'cancelled'];
 
 /** Alive, but waiting on something rather than working. */
 export const SUSPENDED: TaskStatus[] = [
-  'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'paused',
+  'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'waiting_for_input', 'paused',
 ];
 
 export const isTerminal = (s: TaskStatus) => TERMINAL.includes(s);
 export const isSuspended = (s: TaskStatus) => SUSPENDED.includes(s);
 export const isActive = (s: TaskStatus) => !isTerminal(s) && !isSuspended(s);
+
+/** A search a task has handed to its owner (migration 050). */
+export interface SearchRequest {
+  id: string;
+  task_id: string;
+  step_id: string | null;
+  query: string;
+  max_results: number;
+  status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
+  answer: { results: { url: string | null; title: string | null; content: string | null }[]; notes: string | null } | null;
+  created_at: string;
+  answered_at: string | null;
+  expires_at: string;
+  /** Where to start: the query in the person's own browser. */
+  search_url: string;
+}
+
+/** `GET /search/settings` — which providers this account uses, and why. */
+export interface SearchSettings {
+  effective: string[];
+  account: string[] | null;
+  platform: string[];
+  providers: {
+    name: string;
+    label: string;
+    kind: 'paid' | 'free' | 'you';
+    note: string;
+    platformEnabled: boolean;
+    installed: boolean;
+  }[];
+}

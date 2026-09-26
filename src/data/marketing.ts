@@ -1,233 +1,276 @@
-export const marketingNav = [
-{ to: '/platform', label: 'Platform' },
-{ to: '/use-cases', label: 'Use cases' },
+export interface NavLink {
+  to: string;
+  label: string;
+  description?: string;
+}
+
+export interface NavGroup {
+  label: string;
+  children: NavLink[];
+}
+
+export type NavItem = NavLink | NavGroup;
+
+export const isNavGroup = (item: NavItem): item is NavGroup => 'children' in item;
+
+export const marketingNav: NavItem[] = [
+{
+  label: 'Product',
+  children: [
+  { to: '/platform', label: 'How it works', description: 'Plans, routes, checks and memory' },
+  { to: '/use-cases', label: 'Use cases', description: 'What people hand over first' },
+  { to: '/deployment', label: 'Where it runs', description: 'Cloud, your computer, and the roadmap' },
+  { to: '/security', label: 'Trust & control', description: 'Approvals, permissions and records' }]
+
+},
 { to: '/developers', label: 'Developers' },
-{ to: '/security', label: 'Security' },
-{ to: '/deployment', label: 'Deployment' },
 { to: '/pricing', label: 'Pricing' },
-{ to: '/company', label: 'Company' }];
+{
+  label: 'Company',
+  children: [
+  { to: '/company', label: 'About us', description: 'Why DutyCaptain exists' },
+  { to: '/company#contact', label: 'Join early access', description: 'Tell us your first task' },
+  { to: '/deployment#roadmap', label: 'Roadmap', description: 'What is available and what is coming' },
+  { to: '/privacy', label: 'Privacy policy' },
+  { to: '/terms', label: 'Terms of use' }]
+
+}];
 
 
 export const heroStats = [
-{ value: '3,500', label: 'products priced per run' },
-{ value: '25–35 min', label: 'end-to-end, 20 workers' },
-{ value: '100%', label: 'of actions in the audit trail' },
-{ value: '1 GPU', label: 'to run the whole MVP' }];
+{ value: '4 routes', label: 'to reach any system, simplest first' },
+{ value: 'Every change', label: 'checked after it is made' },
+{ value: '0 passwords', label: 'ever shown to the AI' },
+{ value: '1 click', label: 'to approve, pause or stop' }];
 
 
-export const agents = [
+/**
+ * The four ways DutyCaptain reaches a system, in the order it tries them.
+ * The order is the product: the simplest reliable route is always first.
+ */
+export const routes = [
 {
-  id: 'planner',
-  name: 'Planner',
-  model: 'Qwen3-14B → 32B',
+  id: 'built-in',
+  name: 'Built-in tools',
+  level: 'Route 1 · tried first',
   summary:
-  'Turns one English instruction into a typed execution graph — not prose. Decides what runs in parallel, what needs verifying, and where a human has to sign off.'
+  'Spreadsheets, PDFs, data analysis and file handling done directly, with no website or application in between. The fastest route, and the easiest to check.'
 },
 {
-  id: 'browser',
-  name: 'Browser',
-  model: 'Playwright · Chromium, Firefox, WebKit',
+  id: 'services',
+  name: 'Connected services',
+  level: 'Route 2',
   summary:
-  'Persistent sessions with real cookies and logins. Opens, clicks, types, waits, downloads. The model never touches HTML — it issues tool calls.'
+  'Where a service offers its own connection — email, online stores, payments, messaging — DutyCaptain uses it. Your passwords stay in a secure store and are never shown to the AI.'
 },
 {
-  id: 'vision',
-  name: 'Vision',
-  model: 'Qwen2.5-VL-7B',
+  id: 'websites',
+  name: 'Websites',
+  level: 'Route 3',
   summary:
-  'Reads the screenshot when selectors fail, returning values plus bounding boxes. Survives retailer redesigns that break scrapers every quarter.'
+  'Where there is no connection, a browser in the cloud uses the website as a person would. It reads the page’s own description of its buttons and fields, so a redesign does not break it.'
 },
 {
-  id: 'search',
-  name: 'Search',
-  model: 'BGE-M3 + Reranker-v2',
+  id: 'computer',
+  name: 'Your computer',
+  level: 'Route 4 · last resort',
   summary:
-  'Ranks candidate URLs before a browser opens anything, so workers only spend time on high-confidence pages.'
-},
-{
-  id: 'file',
-  name: 'File',
-  model: 'Qwen2.5-VL-7B',
-  summary:
-  'PDFs, scanned invoices, receipts, catalogues, Excel and CSV in. Structured JSON out first, then the report your team actually opens.'
-},
-{
-  id: 'api',
-  name: 'Connector',
-  model: 'Typed adapters',
-  summary:
-  'Writes results back into SmartStore, ERPs, Paystack, courier APIs, Postgres and sheets — in batches, with a snapshot kept.'
+  'For files, documents and desktop applications only your computer can reach, the companion program acts within the folders and applications you permit — asking an application for its buttons by name before ever looking at your screen.'
 }];
 
 
 export const runSequence = [
 {
   title: 'One instruction',
-  body: '“Compare prices of all Samsung phones across Jumia, Konga, Slot and Pointek. Update SmartStore and generate an Excel audit.”'
+  body: '“Pull last month’s orders from our store, build the sales workbook, and send it to our accountant.”'
 },
 {
-  title: 'The planner decomposes it',
-  body: 'Seven steps, three of them parallel, one human gate before any write. You review the graph before dispatch.'
+  title: 'A plan you can see',
+  body: 'Five steps, two of them side by side, one approval before anything leaves the company. The plan is shown before it runs.'
 },
 {
-  title: 'Workers execute',
-  body: '20 Playwright containers resolve URLs, read pages with vision, and validate outliers. No model coordination after dispatch.'
+  title: 'Each step, the best route',
+  body: 'Orders come through the store’s own connection, the analysis runs in the cloud, and every result is checked before the next step starts.'
 },
 {
-  title: 'You approve the write',
-  body: '3,487 proposed price changes arrive as a diff with sources and confidence. Approve once and the graph resumes.'
+  title: 'You approve the send',
+  body: 'The email waits with its recipient and attachment. Approve once, for this task, or always — and the task finishes on its own.'
 }];
 
 
 export const comparison = {
-  columns: ['DutyCaptain', 'RPA / scrapers', 'Chat assistants'],
+  columns: ['DutyCaptain', 'Automation tools', 'Chat assistants'],
   rows: [
-  { feature: 'Handles a site redesign', values: ['Vision re-reads the page', 'Breaks, needs a dev', 'Cannot browse reliably'] },
-  { feature: 'Runs thousands of steps unattended', values: ['DAG + distributed queue', 'Linear, fragile', 'Session-bound'] },
-  { feature: 'Pauses for human sign-off', values: ['Built-in approval gates', 'All or nothing', 'No guarantees'] },
-  { feature: 'Record of every decision', values: ['Full audit trail', 'Logs only', 'Chat history'] },
-  { feature: 'Where your data lives', values: ['Your GPUs, your network', 'Vendor cloud', 'Third-party API'] },
-  { feature: 'Cost per long task', values: ['Fixed GPU hours', 'Per-bot licence', 'Per-token, unbounded'] }]
+  { feature: 'Does the work, not just the advice', values: ['Plans, acts and reports', 'Only what was built in advance', 'Explains the steps'] },
+  { feature: 'A new task without building anything', values: ['Describe it in a sentence', 'Design a new workflow', 'Yes, but you do the work'] },
+  { feature: 'Checks that each step worked', values: ['After every change', 'Rarely', 'No'] },
+  { feature: 'Stops for your approval', values: ['Rules you control', 'All or nothing', 'Not applicable'] },
+  { feature: 'Reaches files and apps on your computer', values: ['With permission you grant', 'Separate desktop product', 'No'] },
+  { feature: 'A record of every action', values: ['Full history per task', 'Run logs', 'Chat history'] }]
 
 };
 
 export const useCases = [
 {
-  id: 'pricing',
-  name: 'Competitive price monitoring',
-  industry: 'Retail & e-commerce',
+  id: 'sales-report',
+  name: 'Monthly sales report',
+  industry: 'Small business & retail',
   problem:
-  'A merchandiser checks 3,500 SKUs across four retailers by hand, so prices are stale by the time they are updated.',
+  'Every month someone exports orders from the online store, rebuilds the same workbook by hand, and emails it to the accountant.',
   approach:
-  'Search ranks retailer URLs, 20 browser workers read each product page with vision, the planner re-verifies anything moving more than 15%, and the write waits for one approval.',
+  'DutyCaptain fetches the orders through the store’s own connection, analyses them, builds and checks the workbook, and waits for one approval before emailing it. Scheduled, it runs on the first of each month without being asked.',
   metrics: [
-  { value: '3,500', label: 'SKUs per run' },
-  { value: '28 min', label: 'typical runtime' },
-  { value: '148', label: 'outliers caught before write' }],
+  { value: '5 steps', label: 'planned from one sentence' },
+  { value: '1', label: 'approval: the email' },
+  { value: 'Monthly', label: 'on a schedule' }],
 
   featured: true
 },
 {
   id: 'invoices',
-  name: 'Supplier invoice extraction',
-  industry: 'Finance operations',
-  problem: '148 scanned invoices a month, re-keyed into the payables sheet by two people.',
+  name: 'Invoices on your own computer',
+  industry: 'Finance & administration',
+  problem: 'Supplier invoices sit as PDFs and scans in a Documents folder, and totals are re-keyed into a spreadsheet by hand.',
   approach:
-  'The file agent reads scans and PDFs with OCR, extracts line items to JSON, and reconciles against purchase orders before producing a payables file.',
+  'The companion program searches only the folder you permit, reads each invoice on your computer, and returns the figures rather than the documents. The totals are checked against what was read.',
   metrics: [
-  { value: '14 min', label: 'for a monthly batch' },
-  { value: '0', label: 'manual re-keying' }]
+  { value: '1 folder', label: 'permitted, nothing else' },
+  { value: 'Figures', label: 'leave your computer, not files' }]
 
 },
 {
-  id: 'catalogue',
-  name: 'Competitor catalogue crawl',
-  industry: 'Category management',
-  problem: 'No structured view of what competitors list, at what price, in stock or not.',
+  id: 'prices',
+  name: 'Competitor price checks',
+  industry: 'Retail & e-commerce',
+  problem: 'Competitors’ prices are checked by opening their websites one product at a time.',
   approach:
-  'A scheduled crawl builds a structured catalogue nightly, with stock status and price history stored in Postgres for the category team.',
+  'A cloud browser visits each page and reads prices from the page’s structure rather than its appearance. Large movements are flagged for review before anything in your store changes.',
   metrics: [
-  { value: 'Nightly', label: 'refresh' },
-  { value: '1,200+', label: 'listings per category' }]
+  { value: 'No API', label: 'needed from competitors' },
+  { value: 'Flagged', label: 'outliers before any update' }]
 
 },
 {
-  id: 'commodity',
-  name: 'Regulated price boards',
-  industry: 'Energy & logistics',
-  problem: 'Pump prices and courier zone rates change without notice and are published as web tables or PDFs.',
+  id: 'desktop',
+  name: 'Work inside desktop applications',
+  industry: 'Operations',
+  problem: 'Some work lives in software with no website and no connection — an accounting package, a desktop spreadsheet, an older internal tool.',
   approach:
-  'A cron-triggered workflow reads the official board, cross-checks two secondary sources, and publishes to the ops sheet after a one-click approval.',
+  'On your computer, DutyCaptain asks the application for its buttons and fields by name and presses them directly, then reads back the result. It works even when the window is not in front of you.',
   metrics: [
-  { value: '08:00', label: 'daily, unattended' },
-  { value: '3 sources', label: 'cross-checked' }]
+  { value: 'By name', label: 'not by screen position' },
+  { value: 'Read back', label: 'after every action' }]
 
 },
 {
-  id: 'onboarding',
-  name: 'Bulk product publishing',
-  industry: 'Marketplace operations',
-  problem: 'Launching 42 new SKUs means 42 rounds of the same admin form.',
+  id: 'portals',
+  name: 'Portals that need your machine',
+  industry: 'Regulated & government filings',
+  problem: 'Some portals only work from a computer with a particular certificate installed, or from inside the office network.',
   approach:
-  'The browser agent operates your admin dashboard directly — no API required — and publishes only after the batch is approved.',
+  'DutyCaptain notices the portal needs your computer, pauses the task, and resumes it from the same step once your computer is available — rather than failing.',
   metrics: [
-  { value: '42 SKUs', label: 'per dispatch' },
-  { value: 'No API', label: 'integration needed' }]
+  { value: 'Paused', label: 'not failed, when offline' },
+  { value: 'Same step', label: 'resumed automatically' }]
 
 }];
 
 
-export const modelStack = [
-{ responsibility: 'Planning & orchestration', model: 'Qwen3-32B-Instruct', vram: '20–28 GB', why: 'Strongest reasoning and tool use' },
-{ responsibility: 'Browser reasoning', model: 'Qwen3-14B', vram: '10–14 GB', why: 'Fast, follows instructions closely' },
-{ responsibility: 'Vision & OCR', model: 'Qwen2.5-VL-7B', vram: '8–12 GB', why: 'Reads screenshots, tables, scans' },
-{ responsibility: 'Classification & routing', model: 'Qwen3-4B', vram: '3–5 GB', why: 'Cheap tagging and triage' },
-{ responsibility: 'Embeddings', model: 'BGE-M3', vram: '< 2 GB', why: 'High-quality multilingual retrieval' },
-{ responsibility: 'Reranking', model: 'BGE-Reranker-v2', vram: '< 2 GB', why: 'Sharpens URL and document retrieval' },
-{ responsibility: 'Speech (optional)', model: 'Whisper Large V3', vram: '3–5 GB', why: 'Voice-issued instructions' }];
+/** The jobs models do inside a task, and how the choice is made. */
+export const modelRoles = [
+{ responsibility: 'Planning and correcting course', choice: 'The strongest available model', why: 'Few calls, where judgement matters most' },
+{ responsibility: 'Reading and sorting information', choice: 'A fast, economical model', why: 'Many calls, where cost adds up' },
+{ responsibility: 'Reading pages, scans and screens', choice: 'A model that can see', why: 'Only when text alone is not enough' },
+{ responsibility: 'Your own model', choice: 'Your key, or a model you host', why: 'For accounts with their own agreements' }];
 
 
-export const clusterSizing = [
-{ service: 'Qwen3-32B planner', gpu: '2× L40S or 2× A100', note: 'Only needed for heavy planning tasks' },
-{ service: 'Qwen3-14B agent', gpu: '1× L40S', note: 'Handles browsing and validation' },
-{ service: 'Qwen2.5-VL vision', gpu: '1× RTX 4090', note: 'Screenshot and document reading' },
-{ service: 'Embeddings', gpu: 'CPU or small GPU', note: 'BGE-M3 runs comfortably on CPU' },
-{ service: 'Playwright workers', gpu: 'CPU containers', note: 'Browser fleet needs no GPU' }];
+export const modelProviders = ['Claude', 'GPT', 'Gemini', 'DeepSeek', 'Self-hosted'];
+
+export type ReleaseStatus = 'Available' | 'Rolling out' | 'Coming next' | 'Planned';
+
+export const deploymentOptions: {name: string;status: ReleaseStatus;note: string;}[] = [
+{ name: 'DutyCaptain Cloud', status: 'Available', note: 'Nothing to install. Tasks run in isolated cloud workspaces.' },
+{ name: 'Companion program', status: 'Available', note: 'Mac first; Windows and Linux follow.' },
+{ name: 'Bring your own model', status: 'Coming next', note: 'Use your own AI provider account, per step or for everything.' },
+{ name: 'Keep files on your device', status: 'Planned', note: 'Results stay on your computer rather than in cloud storage.' },
+{ name: 'Private deployment', status: 'Planned', note: 'Workers, and optionally models, inside your own infrastructure.' }];
 
 
-export const rolloutPhases = [
+export const roadmap: {status: ReleaseStatus;title: string;items: string[];}[] = [
 {
-  phase: 'Phase 1',
-  title: 'One model, one browser fleet',
-  body: 'Qwen3-14B plus Playwright. Browser automation, navigation, extraction, CSV generation and connector writes — enough to run real tasks in week one.'
+  status: 'Available',
+  title: 'The core of the product',
+  items: [
+  'Plain-language tasks, planned into steps you can see',
+  'Built-in tools for spreadsheets, PDFs and data analysis',
+  'Every change checked; budgets on time and spend',
+  'Approval rules, scoped permissions and a full task history',
+  'Cloud browser for websites without a connection',
+  'Companion program for your files and documents']
+
 },
 {
-  phase: 'Phase 2',
-  title: 'Add vision',
-  body: 'Qwen2.5-VL-7B for screenshot understanding, scanned documents and pages where selectors are hopeless.'
+  status: 'Rolling out',
+  title: 'Working inside desktop applications',
+  items: [
+  'Pressing buttons and filling fields in applications by name',
+  'Reading the screen only when an application offers nothing else',
+  'A live view of the work, with Pause and Take control']
+
 },
 {
-  phase: 'Phase 3',
-  title: 'Add memory',
-  body: 'BGE-M3 embeddings in pgvector, so preferences like “prefer Konga over Jumia” carry into future plans.'
+  status: 'Coming next',
+  title: 'Connections and routine',
+  items: [
+  'Connected accounts: Gmail, Shopify, Stripe, Slack and more',
+  'Scheduled tasks that run on their own',
+  'Account memory you can see and delete',
+  'A command-line tool for developers',
+  'Bring your own AI model',
+  'Companion program for Windows and Linux']
+
 },
 {
-  phase: 'Phase 4',
-  title: 'Add the deep planner',
-  body: 'Qwen3-32B swapped in for large multi-branch tasks, unloaded again when execution resumes.'
+  status: 'Planned',
+  title: 'Teams and larger organisations',
+  items: [
+  'Team accounts, roles and named approvers',
+  'Single sign-on',
+  'Private deployment and keeping files on your device',
+  'Custom retention and full history export']
+
 }];
 
 
 export const plans = [
 {
-  id: 'pilot',
-  name: 'Pilot',
-  price: 'Free for 30 days',
-  detail: 'One workflow, on your hardware',
-  forWho: 'Prove one task end to end before committing.',
+  id: 'starter',
+  name: 'Starter',
+  price: 'Early access',
+  detail: 'For one person',
+  forWho: 'Professionals handing over their own routine work.',
   includes: [
-  '1 concurrent task, up to 5 browser workers',
-  'Qwen3-14B + Qwen2.5-VL-7B',
-  'Approval gates and audit trail',
-  'Community support'],
+  'Plain-language tasks with a visible plan',
+  'Built-in tools, websites and connected services',
+  'The companion program for one computer',
+  'Approvals, permissions and task history',
+  'Spending limits on every task'],
 
-  cta: 'Start a pilot',
+  cta: 'Join early access',
   featured: false
 },
 {
-  id: 'operations',
-  name: 'Operations',
-  price: '$1,900',
-  period: '/month',
-  detail: 'Plus your own GPU cost',
-  forWho: 'Teams running scheduled tasks against live business systems.',
+  id: 'team',
+  name: 'Team',
+  price: 'Early access',
+  detail: 'For small teams',
+  forWho: 'Teams that share routine work and want one record of it.',
   includes: [
-  'Unlimited tasks, up to 40 browser workers',
-  'Full model stack with dynamic load/unload',
-  'Scheduled and API-triggered workflows',
-  'Connectors: SmartStore, ERP, Paystack, couriers',
-  'Role-based approvals and 30-day snapshots',
-  'Business-hours support with 4h response'],
+  'Everything in Starter',
+  'Several people and several computers',
+  'Scheduled tasks and connected accounts',
+  'Named approvers and shared approval rules',
+  'Priority support while we onboard you'],
 
   cta: 'Talk to us',
   featured: true
@@ -236,13 +279,14 @@ export const plans = [
   id: 'enterprise',
   name: 'Enterprise',
   price: 'Custom',
-  detail: 'Air-gapped or multi-region',
-  forWho: 'Regulated operations with their own cluster and compliance review.',
+  detail: 'For operations at scale',
+  forWho: 'Organisations with their own security review and compliance needs.',
   includes: [
-  'Dedicated worker pools and model isolation',
-  'SSO, custom retention, export of the full audit log',
-  'Private connector development',
-  'Named engineer and 1h critical response'],
+  'Roles, single sign-on and custom retention',
+  'Bring your own AI model',
+  'Private deployment options',
+  'Full history export for your own review',
+  'A named engineer'],
 
   cta: 'Contact sales',
   featured: false
@@ -251,37 +295,37 @@ export const plans = [
 
 export const pricingFaq = [
 {
-  q: 'What does the GPU actually cost to run?',
-  a: 'An A40 48GB pod is around $0.49/hr. Left on continuously that is roughly $353 a month; during development, starting and stopping the pod usually keeps it under $100. Browser workers are CPU-bound, so the GPU only serves the agent and vision models.'
+  q: 'When will prices be published?',
+  a: 'Before general availability. Early-access members hear first, and nobody is moved onto a paid plan without being told what it costs.'
 },
 {
-  q: 'Can it run fully offline?',
-  a: 'Yes. Every model in the stack is open weight and self-hosted. The only outbound traffic is to the sites and business systems your workflows explicitly target.'
+  q: 'Will I know what a task costs before it runs away?',
+  a: 'Yes. Every task shows its cost as it runs, and you can give each task a limit on spend, time and number of steps. A task that reaches its limit pauses and asks you, rather than carrying on.'
 },
 {
-  q: 'Do we pay per token or per action?',
-  a: 'No. You pay a platform licence and your own compute. A 3,500-product task may make thousands of model calls without changing the bill.'
+  q: 'Do I have to install anything?',
+  a: 'No. Most tasks run entirely in the cloud. The companion program is only needed for tasks that involve files or applications on your own computer.'
 },
 {
   q: 'What happens when a task fails halfway?',
-  a: 'Each node carries retries, timeouts and parallelism. Failed steps are re-dispatched independently, and the task resumes from the graph rather than restarting from the top.'
+  a: 'Each step is checked as it finishes. A failed step is retried, tried another way, or the plan is corrected — and if none of that works, the task stops and tells you what it needs. Completed steps are never repeated.'
 }];
 
 
 export const principles = [
 {
-  title: 'The smallest capable model per step',
-  body: 'A 3,500-product task can make thousands of model calls. Routing each step to the smallest model that can do it is the difference between viable and wasteful, even on your own GPUs.'
+  title: 'The simplest reliable route, every time',
+  body: 'A service’s own connection is faster, cheaper and easier to check than a website, and a website is better than operating a screen. DutyCaptain always tries the simplest route first.'
 },
 {
-  title: 'The runtime is the product',
-  body: 'Anyone can download Qwen. Persistent browser sessions, vision-guided automation, a distributed scheduler, retry and recovery, approval checkpoints and an audit trail are what is hard to build.'
+  title: 'Checked, not assumed',
+  body: 'Every change is followed by a check that it had the intended effect. Where nothing can be checked, DutyCaptain says so rather than reporting success.'
 },
 {
-  title: 'Autonomy with a hand on the brake',
-  body: 'Agents run unattended until an action touches the business. Publishing, deleting, emailing and paying always stop for a human.'
+  title: 'Rules outside the AI',
+  body: 'What needs your approval is decided by rules you control, not by the AI’s judgement in the moment. The AI proposes; the rules decide.'
 },
 {
-  title: 'Measurable work, not conversation',
-  body: 'We build for tasks with a number attached — SKUs priced, invoices read, minutes saved — before general-purpose assistance.'
+  title: 'Honest about what it cannot do',
+  body: 'When a task cannot be finished, DutyCaptain explains why and what would let it continue — a permission, a connection, or your computer coming back online.'
 }];

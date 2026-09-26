@@ -23,7 +23,7 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, Pagination, PendingEnrolment, PlanHistory, SessionUser, Task, TaskBudget,
+  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
@@ -171,8 +171,113 @@ export const auth = {
     }, false));
   },
 
+  /** Always answers the same way, whether or not the account exists. */
+  async forgotPassword(identifier: string) {
+    return request<{ message: string; data: { masked_recipient: string } }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    }, false);
+  },
+
+  /** Completes a reset with the token from the emailed link. Does not sign in. */
+  async resetPassword(token: string, newPassword: string) {
+    return request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword }),
+    }, false);
+  },
+
+  /** Email a 6-digit code to the signed-in account's address. */
+  async sendEmailCode() {
+    const body = await request<{ data: { sent_to: string; already_verified: boolean } }>(
+      '/auth/email/verify/initiate', { method: 'POST', body: '{}' },
+    );
+    return body.data;
+  },
+
+  /** Confirm the code; marks the stored session user as verified. */
+  async confirmEmailCode(code: string) {
+    await request('/auth/email/verify/confirm', { method: 'POST', body: JSON.stringify({ code }) });
+    const user = session.user();
+    const token = session.accessToken();
+    if (user && token) session.save(token, null, { ...user, email_verified: true });
+  },
+
   signOut() {
     session.clear();
+  },
+};
+
+export const notificationsApi = {
+  async preferences() {
+    const body = await request<{ data: NotificationPreferences }>('/notifications/preferences');
+    return body.data;
+  },
+
+  async update(patch: Partial<NotificationPreferences>) {
+    const body = await request<{ data: NotificationPreferences }>('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    });
+    return body.data;
+  },
+};
+
+// --- public config & health -------------------------------------------------
+
+export interface PublicConfig {
+  /** When on, "Create an account" shows the early-access form. */
+  early_access: boolean;
+}
+
+export const configApi = {
+  async get(): Promise<PublicConfig> {
+    const body = await request<{ data: PublicConfig }>('/shared/config', {}, false);
+    return body.data;
+  },
+
+  /** Whether the API answers at all. Never throws. */
+  async healthy(): Promise<boolean> {
+    try {
+      const res = await fetch(`${BASE}/health`, { cache: 'no-store' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+};
+
+// --- search settings ---------------------------------------------------------
+
+export const searchApi = {
+  async settings() {
+    const body = await request<{ data: SearchSettings }>('/search/settings');
+    return body.data;
+  },
+
+  /** Choose providers and their order; `[]` goes back to the platform's order. */
+  async saveSettings(providers: string[]) {
+    const body = await request<{ data: SearchSettings }>('/search/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ providers }),
+    });
+    return body.data;
+  },
+
+  async pendingCount() {
+    const body = await request<{ data: { count: number } }>('/search/pending');
+    return body.data.count;
+  },
+};
+
+// --- admin -----------------------------------------------------------------
+
+export const adminApi = {
+  async setSetting(key: string, value: unknown, description?: string) {
+    return request<{ data: unknown }>('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ key, value, description }),
+    });
   },
 };
 
@@ -209,6 +314,46 @@ export const tasksApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    return body.data;
+  },
+
+  /**
+   * Retry as a new, linked attempt. `learn` (default on) tells the planner what
+   * earlier attempts did; `stop_current` is required for a task still running.
+   */
+  async retry(id: string, input: {
+    objective?: string; note?: string; learn?: boolean; stop_current?: boolean;
+  } = {}) {
+    const body = await request<{ data: Task }>(`/tasks/${id}/retry`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return body.data;
+  },
+
+  /** Searches this task handed to its owner, newest first. */
+  async searchRequests(id: string) {
+    const body = await request<{ data: SearchRequest[] }>(`/tasks/${id}/search-requests`);
+    return body.data;
+  },
+
+  /** Answer with what you found — resumes the task. */
+  async answerSearch(id: string, requestId: string, input: {
+    results: { url?: string; title?: string; content?: string }[]; notes?: string;
+  }) {
+    const body = await request<{ data: { resumed: boolean } }>(
+      `/tasks/${id}/search-requests/${requestId}/answer`,
+      { method: 'POST', body: JSON.stringify(input) },
+    );
+    return body.data;
+  },
+
+  /** Say you could not find it — the task continues without. */
+  async declineSearch(id: string, requestId: string, notes?: string) {
+    const body = await request<{ data: { resumed: boolean } }>(
+      `/tasks/${id}/search-requests/${requestId}/decline`,
+      { method: 'POST', body: JSON.stringify({ notes }) },
+    );
     return body.data;
   },
 
@@ -425,6 +570,28 @@ export const devicesApi = {
 };
 
 // --- the event stream ------------------------------------------------------
+
+// --- early access (public) ---------------------------------------------------
+
+export interface EarlyAccessRequest {
+  name: string;
+  email: string;
+  company?: string;
+  task: string;
+  source?: string;
+  /** Hidden from people; only a bot fills it. */
+  website?: string;
+}
+
+export const earlyAccessApi = {
+  /** Answered the same whether the address is new or has asked before. */
+  submit: (body: EarlyAccessRequest) =>
+  request<{ success: boolean; message: string }>('/early-access', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }, false)
+};
 
 export interface StreamHandle {
   close: () => void;

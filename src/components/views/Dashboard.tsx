@@ -70,7 +70,18 @@ export function Dashboard() {
   { label: 'Status', value: active ? active.status.replace(/_/g, ' ') : '—' },
   { label: 'Started', value: active?.started_at ? new Date(active.started_at).toLocaleTimeString() : '—' }];
 
-  if (!loading && !active) {
+  // Nothing to show until the first answer arrives. Falling through here would
+  // render the task card with `active` still null.
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-[1400px]">
+        <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Operations overview</h1>
+        <div className="mt-5 h-48 animate-pulse rounded-xl border border-line bg-panel shadow-panel" aria-label="Loading" />
+      </div>);
+
+  }
+
+  if (!active) {
     return (
       <div className="mx-auto max-w-[1400px]">
         <h1 className="text-[22px] font-semibold tracking-tight text-ink-900">Operations overview</h1>
@@ -115,14 +126,14 @@ export function Dashboard() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5">
-                  <TaskStatusBadge status={active!.status} />
-                  <span className="font-mono text-[11px] text-ink-400">{active!.id}</span>
+                  <TaskStatusBadge status={active.status} />
+                  <span className="font-mono text-[11px] text-ink-400">{active.id}</span>
                 </div>
                 <h2 className="mt-2 max-w-2xl text-[17px] font-semibold leading-snug tracking-tight text-ink-900">
-                  “{active!.objective}”
+                  “{active.objective}”
                 </h2>
               </div>
-              <Link href={`/app/tasks/${active!.id}`}
+              <Link href={`/app/tasks/${active.id}`}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-ink-900 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-ink-800">
                 
                 Open task

@@ -2,29 +2,30 @@ import { PageHeader, Section, SectionHeading } from '@/components/marketing/Sect
 import { CTABand } from '@/components/marketing/CTABand';
 
 const gatedActions = [
-{ action: 'Publish or update products', gate: 'Always', why: 'Customer-facing and hard to reverse' },
-{ action: 'Delete records', gate: 'Always', why: 'Destructive by definition' },
-{ action: 'Send email', gate: 'Always', why: 'Leaves your organisation' },
-{ action: 'Submit payments', gate: 'Always', why: 'Moves money' },
-{ action: 'Write to a shared sheet', gate: 'Configurable', why: 'Low risk, often left autonomous' },
-{ action: 'Read, search, extract, report', gate: 'Never', why: 'No side effects on the business' }];
+{ action: 'Send an email or message', gate: 'Always', why: 'It leaves your organisation' },
+{ action: 'Make a payment or transfer', gate: 'Always', why: 'Moves money; also asks you to sign in again' },
+{ action: 'Delete or overwrite outside the task', gate: 'Always', why: 'Hard or impossible to reverse' },
+{ action: 'Submit a form or publish content', gate: 'Always', why: 'Seen by others once done' },
+{ action: 'Grant a new permission or install software', gate: 'Always', why: 'Changes what is possible next' },
+{ action: 'Look at your screen', gate: 'Always', why: 'A picture can show far more than the task needs' },
+{ action: 'Read, search, analyse, prepare a file', gate: 'Never', why: 'Changes nothing outside the task' }];
 
 
 export function Security() {
   return (
     <>
       <PageHeader
-        eyebrow="Security & control"
-        title="Agents with authority need a brake and a record"
-        lede="An agent that can operate your admin dashboard is an agent that can break it. Two mechanisms make that safe: a gate in front of every destructive action, and a row in the audit log for everything else." />
+        eyebrow="Trust & control"
+        title="Authority to act needs a brake and a record"
+        lede="A system that can send, pay and change records on your behalf must be held to rules. DutyCaptain has two: nothing consequential happens without your approval, and everything is written down." />
       
 
       <Section tone="light">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-16">
           <div>
             <SectionHeading
-              title="Approval gates sit inside the graph"
-              lede="The task does not stop — the branch does. Extraction, validation and reporting keep running while the write waits for you, so approving costs minutes rather than a whole re-run." />
+              title="The AI proposes; your rules decide"
+              lede="The AI never carries out an action itself. Every proposed step passes through rules you control, which allow it, ask you, or block it. While one step waits for you, the rest of the task carries on." />
             
 
             <div className="mt-8 overflow-x-auto rounded-xl border border-line">
@@ -74,23 +75,23 @@ export function Security() {
 
           <figure className="rounded-xl border border-line bg-panel p-6 shadow-panel">
             <figcaption className="text-[12px] font-semibold text-ink-700">
-              The decision the runtime makes
+              The decision made before every step
             </figcaption>
             <div className="mt-5 space-y-2 text-center">
               <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-[12px] font-medium text-brand-700">
-                Step ready to execute
+                The AI proposes a step
               </div>
               <div className="flex justify-center" aria-hidden="true">
                 <span className="h-4 w-px bg-line-strong" />
               </div>
               <div className="rounded-lg border border-warn-100 bg-warn-50 px-4 py-2.5 text-[12px] font-medium text-warn-700">
-                Does it change the business?
+                What do your rules say?
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-wide text-ok-700">No</p>
                   <div className="mt-1.5 rounded-lg border border-ok-100 bg-ok-50 px-3 py-2.5 text-[12px] font-medium text-ok-700">
-                    Runs autonomously
+                    Runs straight away
                   </div>
                 </div>
                 <div>
@@ -98,7 +99,7 @@ export function Security() {
                     Yes
                   </p>
                   <div className="mt-1.5 rounded-lg border border-danger-100 bg-danger-50 px-3 py-2.5 text-[12px] font-medium text-danger-700">
-                    Review required
+                    Asks you first
                   </div>
                 </div>
               </div>
@@ -106,12 +107,12 @@ export function Security() {
                 <span className="h-4 w-px bg-line-strong" />
               </div>
               <div className="rounded-lg bg-ink-900 px-4 py-2.5 text-[12px] font-medium text-white">
-                Approve · graph resumes
+                Once · for this task · always
               </div>
             </div>
             <p className="mt-5 text-[12px] leading-relaxed text-ink-500">
-              Approvals are role-based. The operator who can approve a price write is not
-              necessarily the one who can approve a payment.
+              Rules can also block an action outright. Every approval is recorded with who gave
+              it, when, and exactly what it covered.
             </p>
           </figure>
         </div>
@@ -120,21 +121,21 @@ export function Security() {
       <Section tone="canvas">
         <SectionHeading
           title="Everything is written down"
-          lede="Each audit row names the agent, the model, the action, the target, the token cost, the outcome and the task. Nothing an agent did is inferred after the fact." />
+          lede="Each step records what was done, by which route and which AI model, what it cost, how it was checked, and who approved it. Nothing is reconstructed after the fact." />
         
         <div className="mt-9 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-3">
           {[
           {
-            t: 'Reconstruct any number',
-            b: 'Trace a published price back through the validation step, the extracted JSON, the screenshot that produced it and the URL it came from.'
+            t: 'Trace any result',
+            b: 'Follow a figure in a report back through the check that confirmed it, the step that produced it, and the document or page it came from.'
           },
           {
-            t: 'Snapshots before writes',
-            b: 'A pre-write snapshot of every affected record is kept for 30 days, so a bad batch is a rollback rather than an incident.'
+            t: 'Nothing leaves your computer silently',
+            b: 'When a document’s contents leave your computer, the event is recorded with the file and its size — so you can see exactly what crossed.'
           },
           {
-            t: 'Exportable log',
-            b: 'The full audit trail exports as JSON or CSV for your own compliance review and retention rules.'
+            t: 'Passwords never reach the AI',
+            b: 'Credentials for connected services are kept in a secure store and used only at the moment of the action. The AI sees a name, never a key.'
           }].
           map((item) =>
           <div key={item.t} className="bg-panel p-6">
@@ -149,16 +150,16 @@ export function Security() {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
           <div>
             <SectionHeading
-              title="Self-hosted means self-hosted"
-              lede="Every model in the stack is open weight and served from your cluster with vLLM. There is no vendor inference endpoint in the path, and no customer data leaves your network unless a workflow you wrote sends it somewhere." />
+              title="Your computer, your rules"
+              lede="The companion program is a helper, not a second decision-maker. It holds no plan and no AI of its own; it carries out approved instructions within the permissions you gave, and nothing more." />
             
             <dl className="mt-7 space-y-4 border-t border-line pt-6">
               {[
-              ['Model weights', 'Qwen3, Qwen2.5-VL, BGE — pulled once, stored on your volume'],
-              ['Inference', 'vLLM on your GPUs, no external API calls'],
-              ['Data at rest', 'Your PostgreSQL, your object storage, your retention policy'],
-              ['Network egress', 'Only the sites and systems your workflows target'],
-              ['Credentials', 'Browser sessions and API keys stored encrypted per connector']].
+              ['Access', 'Only the folders and applications you name — never the whole computer'],
+              ['Checked twice', 'The cloud will not send an instruction without permission, and your computer checks it again'],
+              ['Connection', 'Outgoing only; no ports opened, nothing exposed to the internet'],
+              ['Screen', 'A separate permission, and your approval each time it is used'],
+              ['Control', 'Pause from the menu bar, or withdraw access instantly from the web']].
               map(([k, v]) =>
               <div key={k} className="grid grid-cols-1 gap-1 sm:grid-cols-[160px_minmax(0,1fr)]">
                   <dt className="text-[13px] font-medium text-ink-900">{k}</dt>
@@ -170,16 +171,16 @@ export function Security() {
 
           <div>
             <SectionHeading
-              title="Access and accountability"
-              lede="Operators supervise, they do not share one login. Every approval carries a name." />
+              title="Built for content that cannot be trusted"
+              lede="Web pages, documents and emails are written by other people. DutyCaptain treats them as information to read, never as instructions to follow." />
             
             <ul className="mt-7 space-y-4">
               {[
-              'Role-based permissions per action class — read, write, publish, pay.',
-              'SSO on Enterprise, with group-to-role mapping.',
-              'Named approver recorded on the audit row, not just “approved”.',
-              'Scheduled tasks run as a service identity with its own permitted actions.',
-              'Task-level connector scoping, so a crawl cannot reach your payments adapter.'].
+              'Text on a page that tries to give orders cannot approve anything; at most it can cause a proposal, which your rules then judge.',
+              'The goal of a task can only be changed by you, not by something the task read.',
+              'Cloud work runs in isolated workspaces that are discarded after each task.',
+              'A dropped connection can never cause an action to happen twice.',
+              'Team roles, named approvers and single sign-on are coming for larger organisations.'].
               map((item) =>
               <li key={item} className="flex gap-3 text-[14px] leading-relaxed text-ink-700">
                   <span
@@ -196,9 +197,9 @@ export function Security() {
 
       <CTABand
         title="Bring your security review"
-        body="We will walk your team through the approval model, the audit schema and the deployment topology before you commit to a pilot."
+        body="We will walk your team through the approval rules, the task history and where work runs before you commit to anything."
         primary={{ to: '/company', label: 'Talk to us' }}
-        secondary={{ to: '/deployment', label: 'Deployment details' }} />
+        secondary={{ to: '/deployment', label: 'Where it runs' }} />
       
     </>);
 

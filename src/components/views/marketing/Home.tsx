@@ -15,21 +15,21 @@ export function Home() {
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.05fr_minmax(0,0.95fr)]">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-wider text-brand-200">
-                Self-hosted agent operating system
+                Autonomous task execution
               </p>
               <h1 className="mt-4 max-w-xl text-[36px] font-semibold leading-[1.05] tracking-tight text-white lg:text-[52px]">
-                Give one instruction. The agents do the whole task.
+                Describe the task. DutyCaptain does the work.
               </h1>
               <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-shell-text lg:text-[17px]">
-                DutyCaptain plans the work, drives real browsers, reads pages and documents with
-                vision, and writes results back into your systems — thousands of steps unattended,
-                stopping only when a human needs to approve something.
+                DutyCaptain plans the steps, carries each one out by the most reliable route — a
+                built-in tool, a connected service, a website, or your own computer — checks that it
+                worked, and stops for your approval before anything that matters.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Link href="/company"
+                <Link href="/company#contact"
                   className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2.5 text-[14px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500">
                   
-                  Book a demo
+                  Join early access
                   <ArrowRightIcon className="h-4 w-4" strokeWidth={2.2} />
                 </Link>
                 <Link href="/app"
@@ -59,7 +59,7 @@ export function Home() {
             <div className="lg:pl-6">
               <ConsoleMock />
               <p className="mt-3 text-center text-[12px] text-shell-text">
-                The operator console, mid-run on a 3,500-SKU pricing task.
+                The task view, part-way through a monthly sales report.
               </p>
             </div>
           </div>
@@ -68,8 +68,8 @@ export function Home() {
 
       <Section tone="light">
         <SectionHeading
-          title="One sentence in, a supervised execution graph out"
-          lede="The planner never drives the browser itself. It issues typed steps to execution agents, and you see the plan before anything runs." />
+          title="One sentence in, finished and checked work out"
+          lede="You see the plan before anything runs, and a record of every step once it has." />
         
 
         <ol className="mt-10 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-line bg-line md:grid-cols-2 lg:grid-cols-4">
@@ -90,7 +90,7 @@ export function Home() {
           <Link href="/platform"
             className="inline-flex items-center gap-1.5 text-[14px] font-medium text-brand-700 transition-colors duration-150 ease-out hover:text-brand-500">
             
-            See how the runtime works
+            See how it works
             <ArrowRightIcon className="h-4 w-4" strokeWidth={2.2} />
           </Link>
         </div>
@@ -122,7 +122,7 @@ export function Home() {
             <Link href="/use-cases"
               className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium text-brand-700 transition-colors duration-150 ease-out hover:text-brand-500">
               
-              Four more operations we automate
+              Four more tasks people hand over
               <ArrowRightIcon className="h-4 w-4" strokeWidth={2.2} />
             </Link>
           </div>
@@ -131,43 +131,41 @@ export function Home() {
             <figcaption className="text-[12px] font-semibold text-ink-700">
               What the approval looks like
             </figcaption>
-            <div className="mt-4 overflow-hidden rounded-lg border border-line">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-line bg-canvas">
-                    {['SKU', 'Current', 'Proposed', 'Source'].map((h) =>
-                    <th
-                      key={h}
-                      scope="col"
-                      className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-ink-500">
-                      
-                        {h}
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {[
-                  ['SM-S928B', '₦1,399,000', '₦1,249,900', 'Jumia'],
-                  ['SM-A556E', '₦425,000', '₦411,500', 'Konga'],
-                  ['SM-F731B', '₦1,180,000', '₦879,000', 'Slot'],
-                  ['SM-S921B', '₦1,049,000', '₦1,019,000', 'Jumia']].
-                  map((row, i) =>
-                  <tr key={row[0]} className={i === 2 ? 'bg-warn-50/60' : ''}>
-                      <td className="px-3 py-2 font-mono text-[11px] text-ink-700">{row[0]}</td>
-                      <td className="tabular px-3 py-2 text-[12px] text-ink-500">{row[1]}</td>
-                      <td className="tabular px-3 py-2 text-[12px] font-semibold text-ink-900">
-                        {row[2]}
-                      </td>
-                      <td className="px-3 py-2 text-[12px] text-ink-700">{row[3]}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="mt-4 overflow-hidden rounded-lg border border-warn-100">
+              <div className="flex items-center justify-between border-b border-warn-100 bg-warn-50 px-4 py-2.5">
+                <span className="text-[12px] font-semibold text-warn-700">Email to accountant</span>
+                <span className="font-mono text-[10px] uppercase tracking-wide text-warn-700">
+                  needs approval
+                </span>
+              </div>
+              <dl className="divide-y divide-line">
+                {[
+                ['To', 'accounts@example-accountants.com'],
+                ['Subject', 'Sales report — August 2026'],
+                ['Attachment', 'sales-report-2026-08.xlsx · 3 sheets, checked'],
+                ['Why it is asking', 'Sending email always needs approval']].
+                map(([k, v]) =>
+                <div key={k} className="grid grid-cols-[110px_minmax(0,1fr)] gap-3 px-4 py-2.5">
+                    <dt className="text-[12px] text-ink-500">{k}</dt>
+                    <dd className="text-[12px] font-medium text-ink-900">{v}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="flex flex-wrap gap-2 border-t border-line bg-canvas px-4 py-3">
+                <span className="rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white">
+                  Allow once
+                </span>
+                <span className="rounded-md border border-line bg-panel px-3 py-1.5 text-[12px] font-medium text-ink-900">
+                  Allow for this task
+                </span>
+                <span className="rounded-md border border-line bg-panel px-3 py-1.5 text-[12px] font-medium text-ink-900">
+                  Deny
+                </span>
+              </div>
             </div>
             <p className="mt-3 text-[12px] leading-relaxed text-ink-500">
-              Row three moved 25.5% and was flagged as an outlier by the planner before it reached
-              you. Approving writes all 3,487 records in one batch, with a snapshot kept.
+              The workbook was reopened and checked before this request reached you. Approving
+              sends it, confirms delivery, and records who approved it and when.
             </p>
           </figure>
         </div>
@@ -175,8 +173,8 @@ export function Home() {
 
       <Section tone="light">
         <SectionHeading
-          title="Why not a scraper, or a chatbot"
-          lede="Long-running business work fails in specific ways. This is what we built the runtime to survive." />
+          title="Why not an automation tool, or a chat assistant"
+          lede="Each solves part of the problem. DutyCaptain was built for the whole of it: understanding the task, doing it, and proving it was done." />
         
         <div className="mt-9 overflow-x-auto rounded-xl border border-line">
           <table className="w-full min-w-[720px] border-collapse text-left">
@@ -231,21 +229,21 @@ export function Home() {
           <div>
             <SectionHeading
               title="Autonomous, but never unsupervised"
-              lede="Everything runs on your hardware, and every action an agent takes is written down — including the ones it was stopped from taking." />
+              lede="DutyCaptain acts only within limits you set, and every action is written down — including the ones it was stopped from taking." />
             
             <div className="mt-7 space-y-5">
               {[
               {
-                t: 'Approval gates mid-graph',
-                b: 'Publishing, deleting, emailing and paying pause the branch and wait. Everything else continues.'
+                t: 'Approval before anything consequential',
+                b: 'Sending, paying, deleting and publishing wait for you. Reading and preparing carry on without interrupting.'
               },
               {
-                t: 'An audit row per decision',
-                b: 'Model, action, target, tokens, outcome and task id — the record you hand to finance when a number looks wrong.'
+                t: 'A record of every step',
+                b: 'What was done, by which route, what it cost, how it was checked, and who approved it.'
               },
               {
-                t: 'Your GPUs, your network',
-                b: 'Open-weight models served with vLLM. No customer data leaves the cluster you control.'
+                t: 'Your computer, on your terms',
+                b: 'The companion program reaches only the folders and applications you name, and you can pause or withdraw it at any time.'
               }].
               map((item) =>
               <div key={item.t} className="border-l-2 border-brand-600 pl-4">
@@ -259,24 +257,24 @@ export function Home() {
             <Link href="/security"
               className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium text-brand-700 transition-colors duration-150 ease-out hover:text-brand-500">
               
-              How control and auditing work
+              How trust and control work
               <ArrowRightIcon className="h-4 w-4" strokeWidth={2.2} />
             </Link>
           </div>
 
           <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-panel">
             <div className="border-b border-line px-5 py-3">
-              <p className="text-[12px] font-semibold text-ink-900">Audit trail</p>
-              <p className="mt-0.5 text-[11px] text-ink-500">task_8412 · last 6 events</p>
+              <p className="text-[12px] font-semibold text-ink-900">Task history</p>
+              <p className="mt-0.5 text-[11px] text-ink-500">Prepare monthly sales report · last 6 events</p>
             </div>
             <ul className="divide-y divide-line">
               {[
-              ['09:25:41', 'extract.price', 'Qwen2.5-VL-7B', 'ok'],
-              ['09:25:38', 'browser.click', 'Qwen3-14B', 'ok'],
-              ['09:25:36', 'validate.outlier', 'Qwen3-14B', 'blocked'],
-              ['09:25:31', 'extract.price', 'Qwen2.5-VL-7B', 'retry'],
-              ['09:25:27', 'browser.open', 'Qwen3-14B', 'ok'],
-              ['09:25:22', 'search.rank', 'BGE-Reranker-v2', 'ok']].
+              ['09:25:41', 'Email to accountant', 'connected service', 'waiting'],
+              ['09:25:38', 'Format charts in Excel', 'your computer', 'ok'],
+              ['09:25:31', 'Check the workbook', 'built-in', 'ok'],
+              ['09:25:27', 'Build the workbook', 'built-in', 'retry'],
+              ['09:25:12', 'Analyse orders', 'built-in', 'ok'],
+              ['09:25:03', 'Fetch orders', 'connected service', 'ok']].
               map((row) =>
               <li key={row[0]} className="flex items-center gap-3 px-5 py-2.5">
                   <span className="tabular font-mono text-[11px] text-ink-400">{row[0]}</span>
@@ -290,7 +288,7 @@ export function Home() {
                   className={`rounded border px-1.5 py-[2px] text-[10px] font-medium capitalize ${
                   row[3] === 'ok' ?
                   'border-ok-100 bg-ok-50 text-ok-700' :
-                  row[3] === 'retry' ?
+                  row[3] === 'waiting' ?
                   'border-warn-100 bg-warn-50 text-warn-700' :
                   'border-brand-200 bg-brand-50 text-brand-700'}`
                   }>
@@ -305,8 +303,8 @@ export function Home() {
       </Section>
 
       <CTABand
-        title="Start with one task that has a number attached"
-        body="Pick a workflow your team does by hand today. We will run it on your hardware and show you the audit trail." />
+        title="Start with one task you do by hand today"
+        body="Tell us what it is. We will set it up with you during early access and show you the record of every step." />
       
     </>);
 

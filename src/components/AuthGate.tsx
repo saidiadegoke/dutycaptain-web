@@ -17,13 +17,6 @@ import { session } from '@/lib/api';
  * redirecting after would flash a shell full of empty panels, which reads as a
  * broken app rather than a sign-in.
  */
-/**
- * Pages inside the console that must NOT be gated.
- *
- * Sign-in lives under `/app` so it inherits the shell, which means the gate
- * would otherwise redirect it to itself — forever.
- */
-const PUBLIC = ['/app/signin'];
 
 export function AuthGate({ children }: {children: React.ReactNode;}) {
   const router = useRouter();
@@ -32,10 +25,9 @@ export function AuthGate({ children }: {children: React.ReactNode;}) {
 
   useEffect(() => {
     const check = () => {
-      if (PUBLIC.includes(pathname)) return setState('in');
       if (session.isSignedIn()) return setState('in');
       setState('out');
-      router.replace(`/app/signin?next=${encodeURIComponent(pathname)}`);
+      router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
       return undefined;
     };
     check();
