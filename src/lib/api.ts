@@ -23,7 +23,7 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, SessionUser, Task, TaskBudget,
+  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
@@ -341,7 +341,10 @@ export const tasksApi = {
     return body.data;
   },
 
-  async create(objective: string, options: { start?: boolean; budget?: Record<string, unknown> } = {}) {
+  async create(objective: string, options: {
+    start?: boolean; budget?: Record<string, unknown>;
+    deliver_to?: { endpoint_id: string; when: 'done' | 'finished' };
+  } = {}) {
     const body = await request<{ data: Task }>('/tasks', {
       method: 'POST',
       body: JSON.stringify({ objective, ...options }),
@@ -433,6 +436,18 @@ export const tasksApi = {
   },
 
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  /** Every send this task made to an endpoint, newest first. */
+  async deliveries(id: string) {
+    const body = await request<{ data: Delivery[] }>(`/tasks/${id}/deliveries`);
+    return body.data;
+  },
+
+  /** Send a delivery again now. */
+  async resendDelivery(id: string, deliveryId: string) {
+    const body = await request<{ data: Delivery }>(`/tasks/${id}/deliveries/${deliveryId}/resend`, { method: 'POST' });
+    return body.data;
+  },
+
   /** A text file's contents, for a preview on the page (the first `maxChars`). */
   async artifactText(taskId: string, artifactId: string, maxChars = 200_000) {
     const res = await authedFetch(this.artifactUrl(taskId, artifactId));
@@ -514,6 +529,29 @@ export const tasksApi = {
  * reason it is its own API module: an approval is a thing a PERSON has, not a
  * thing a task has. The queue is "what is waiting on me" across every task.
  */
+export const endpointsApi = {
+  async list() {
+    const body = await request<{ data: Endpoint[] }>('/endpoints');
+    return body.data;
+  },
+  async create(input: EndpointInput) {
+    const body = await request<{ data: Endpoint }>('/endpoints', { method: 'POST', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async update(id: string, input: EndpointInput) {
+    const body = await request<{ data: Endpoint }>(`/endpoints/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async remove(id: string) {
+    await request(`/endpoints/${id}`, { method: 'DELETE' });
+  },
+  /** Sends a sample for real, and says what came back. */
+  async test(id: string) {
+    const body = await request<{ data: SendResult }>(`/endpoints/${id}/test`, { method: 'POST' });
+    return body.data;
+  },
+};
+
 export const runtimeApi = {
   /** AI and search providers, the sandbox, the browser worker, computers, recent tasks. */
   async status() {

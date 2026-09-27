@@ -12,7 +12,8 @@ import {
   XCircleIcon } from
 'lucide-react';
 import { ApiError, tasksApi } from '@/lib/api';
-import type { Artifact, TaskDetail } from '@/lib/types';
+import type { Artifact, Delivery, TaskDetail } from '@/lib/types';
+import { Deliveries } from './Deliveries';
 import { isTerminal } from '@/lib/types';
 import { bytes } from '@/utils/format';
 import { iconFor } from '@/components/views/Artifacts';
@@ -195,7 +196,15 @@ function Files({ task }: {task: TaskDetail;}) {
  * reason the task exists. Done: the result in words and the files. Failed:
  * why, and the way to try again. Running: where it is, and what it waits for.
  */
-export function TaskOutcome({ task, onRetry }: {task: TaskDetail;onRetry: (mode: 'retry' | 'edit') => void;}) {
+export function TaskOutcome({ task, onRetry, deliveries = [], deliveryTo = null, onDeliveriesChanged = () => {} }: {
+  task: TaskDetail;
+  onRetry: (mode: 'retry' | 'edit') => void;
+  deliveries?: Delivery[];
+  /** The endpoint's name, when the task sends its result on finishing. */
+  deliveryTo?: string | null;
+  onDeliveriesChanged?: () => void;
+}) {
+  const sent = <Deliveries taskId={task.id} deliveries={deliveries} pendingTo={deliveryTo} onChanged={onDeliveriesChanged} />;
   const retryButtons =
   <div className="mt-4 flex flex-wrap gap-2">
       <button type="button" onClick={() => onRetry('retry')}
@@ -220,6 +229,7 @@ export function TaskOutcome({ task, onRetry }: {task: TaskDetail;onRetry: (mode:
               {task.outcome?.summary || 'Finished. No summary was recorded for this task.'}
             </p>
             <Files task={task} />
+            {sent}
           </div>
         </div>
       </section>);
@@ -245,6 +255,7 @@ export function TaskOutcome({ task, onRetry }: {task: TaskDetail;onRetry: (mode:
               {task.error?.message || (cancelled ? 'It was stopped before it finished.' : 'It stopped without saying why.')}
             </p>
             <Files task={task} />
+            {sent}
             {retryButtons}
           </div>
         </div>
@@ -272,6 +283,7 @@ export function TaskOutcome({ task, onRetry }: {task: TaskDetail;onRetry: (mode:
           <Link href="/app/approvals" className="mt-3 inline-block text-[13px] font-medium text-brand-700 hover:text-brand-500">Review it in Approvals →</Link>
           }
           <Files task={task} />
+            {sent}
         </div>
       </div>
     </section>);

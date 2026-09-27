@@ -31,9 +31,9 @@ import { CostPanel } from '@/components/CostPanel';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { TaskOutcome } from '@/components/task/TaskOutcome';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
-import { tasksApi, ApiError } from '@/lib/api';
+import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
-import type { Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
+import type { Delivery, Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { ago } from '@/utils/format';
 
@@ -60,6 +60,8 @@ export function TaskDetail() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryMode, setRetryMode] = useState<'retry' | 'edit' | null>(null);
   const [searches, setSearches] = useState<SearchRequest[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [endpointNames, setEndpointNames] = useState<Record<string, string>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get('view') || 'summary';
@@ -73,6 +75,8 @@ export function TaskDetail() {
     try {
       setTask(await tasksApi.get(taskId));
       setState('ready');
+      // Where it sent its result. Separate, and never blocks the page.
+      tasksApi.deliveries(taskId).then(setDeliveries).catch(() => {});
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reach the API.');
       setState('error');
@@ -80,6 +84,11 @@ export function TaskDetail() {
   }, [taskId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // The endpoint's name, for "will be sent to …" before anything was sent.
+  useEffect(() => {
+    endpointsApi.list().then((all) => setEndpointNames(Object.fromEntries(all.map((e) => [e.id, e.name])))).catch(() => {});
+  }, []);
 
   // Searches waiting for the owner: read whenever the task is paused for one.
   const status = task?.status;
@@ -306,7 +315,12 @@ export function TaskDetail() {
               }} />
             )}
 
-              <TaskOutcome task={task} onRetry={setRetryMode} />
+              <TaskOutcome
+              task={task}
+              onRetry={setRetryMode}
+              deliveries={deliveries}
+              deliveryTo={task.delivery ? endpointNames[task.delivery.endpoint_id] || 'your endpoint' : null}
+              onDeliveriesChanged={() => tasksApi.deliveries(taskId).then(setDeliveries).catch(() => {})} />
 
               {((task.attempt ?? 1) > 1 || (task.retries && task.retries.length > 0)) &&
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">

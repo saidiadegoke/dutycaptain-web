@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, TerminalIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
-import { tasksApi, ApiError } from '@/lib/api';
+import { tasksApi, ApiError, endpointsApi } from '@/lib/api';
+import type { Endpoint } from '@/lib/types';
 
 /**
  * New task (P1-15).
@@ -38,6 +39,11 @@ export function NewTask() {
   const [objective, setObjective] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
+  const [sendTo, setSendTo] = useState('');
+  const [alsoOnFailure, setAlsoOnFailure] = useState(false);
+
+  useEffect(() => { endpointsApi.list().then(setEndpoints).catch(() => setEndpoints([])); }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +51,9 @@ export function NewTask() {
     setBusy(true);
     setError(null);
     try {
-      const task = await tasksApi.create(objective.trim());
+      const task = await tasksApi.create(objective.trim(), sendTo ?
+      { deliver_to: { endpoint_id: sendTo, when: alsoOnFailure ? 'finished' : 'done' } } :
+      {});
       // Straight to the detail page: the task is already running by the time
       // this resolves, and the interesting part is watching it.
       router.push(`/app/tasks/${task.id}`);
@@ -82,6 +90,31 @@ export function NewTask() {
             placeholder="e.g. Fetch the Node.js repo from the GitHub API and report its star count."
             className="w-full resize-y bg-transparent text-[14px] leading-relaxed text-ink-900 placeholder:text-ink-400 focus:outline-none" />
           
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px]">
+            <label className="inline-flex items-center gap-2 text-ink-700">
+              When it’s done, send the result to
+              <select
+                value={sendTo}
+                onChange={(e) => setSendTo(e.target.value)}
+                className="cursor-pointer rounded-md border border-line bg-panel px-2 py-1 font-mono text-[12px] text-ink-900">
+                <option value="">nowhere</option>
+                {endpoints.map((ep) => <option key={ep.id} value={ep.id}>{ep.name}</option>)}
+              </select>
+            </label>
+            {sendTo &&
+            <label className="inline-flex cursor-pointer items-center gap-1.5 text-ink-700">
+                <input type="checkbox" checked={alsoOnFailure} onChange={(e) => setAlsoOnFailure(e.target.checked)} className="cursor-pointer" />
+                also if it fails
+              </label>
+            }
+            {sendTo && endpoints.find((ep) => ep.id === sendTo)?.approval === 'ask' &&
+            <span className="text-ink-500">You’ll be asked to approve before it sends.</span>
+            }
+            <Link href="/app/settings" className="text-brand-700 hover:text-brand-500">
+              {endpoints.length ? 'Manage endpoints' : 'Add an API endpoint'}
+            </Link>
+          </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
             <p className="text-[11px] text-ink-400">

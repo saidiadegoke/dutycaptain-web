@@ -126,7 +126,11 @@ export function Approvals() {
       const out = await approvalsApi.decide(selected.id, {
         granted, scope, note: note.trim() || undefined,
       });
+      // A finished task's result waiting to be sent has no step to resume.
+      const delivery = !selected.step_id && selected.capability === 'api.send';
       setOutcome(
+        delivery ?
+        granted ? 'Approved. The result has been sent — the task page shows the reply.' : 'Declined. The result was not sent.' :
         granted ?
         `Approved. ${out.resumed ? 'The task is running again.' : 'The task will pick it up.'}` :
         'Declined. The task carries on without that step.'

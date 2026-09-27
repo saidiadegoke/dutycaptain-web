@@ -153,6 +153,8 @@ export interface Task {
   plan_version: number;
   budget: TaskBudget;
   error: { code?: string; message?: string } | null;
+  /** Where its result is sent when it finishes. */
+  delivery?: { endpoint_id: string; when: 'done' | 'finished' } | null;
   /** What a finished task came to, in words (detail only; null until done). */
   outcome?: { summary: string | null; steps_run: number | null; steps_failed: number; steps_skipped: number } | null;
   /** 1 for an original; 2+ for a retry. */
@@ -523,3 +525,58 @@ export interface RuntimeStatus {
 
 export const checked = <T extends object>(v: T | { error: string } | undefined): T | null =>
   v && !('error' in v) ? v as T : null;
+
+/** A saved API a task can send its result to (secret values are never returned). */
+export interface Endpoint {
+  id: string;
+  name: string;
+  description: string | null;
+  method: 'POST' | 'PUT' | 'PATCH' | 'GET' | 'DELETE';
+  url: string;
+  headers: Record<string, string>;
+  /** Names only. */
+  secret_headers: string[];
+  body_template: unknown | null;
+  approval: 'ask' | 'auto';
+  timeout_ms: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EndpointInput {
+  name?: string;
+  description?: string | null;
+  method?: Endpoint['method'];
+  url?: string;
+  headers?: Record<string, string>;
+  /** Replaces every stored secret when given; leave out to keep them. */
+  secret_headers?: Record<string, string>;
+  body_template?: unknown | string | null;
+  approval?: 'ask' | 'auto';
+}
+
+/** One send to an endpoint, and what came back. */
+export interface Delivery {
+  id: string;
+  task_id: string;
+  step_id: string | null;
+  endpoint_id: string | null;
+  endpoint_name: string | null;
+  trigger: 'completion' | 'step' | 'resend' | 'test';
+  status: 'pending' | 'waiting_approval' | 'sending' | 'sent' | 'failed' | 'denied' | 'expired';
+  approval_id: string | null;
+  request: { method?: string; url?: string; headers?: string[]; body?: string; body_bytes?: number };
+  response: { status?: number; content_type?: string | null; json?: unknown; body?: string; location?: string } | null;
+  error: string | null;
+  attempts: number;
+  created_at: string;
+  sent_at: string | null;
+}
+
+export interface SendResult {
+  ok: boolean;
+  request: Delivery['request'];
+  response?: Delivery['response'];
+  error?: string;
+  durationMs?: number;
+}
