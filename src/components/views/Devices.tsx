@@ -189,7 +189,7 @@ function Grants({
           <button
           type="button"
           onClick={() => onRevoke(grant.id)}
-          className="shrink-0 rounded-md border border-line px-2 py-1 text-[11px] text-ink-600 hover:bg-surface-hover"
+          className="shrink-0 rounded-md border border-line px-2 py-1 text-[11px] text-ink-700 hover:bg-surface-hover"
           aria-label={`Revoke ${grant.capability}`}>
 
             <TrashIcon className="h-3.5 w-3.5" />
@@ -235,7 +235,7 @@ function EnrolmentCode({
       <button
         type="button"
         onClick={onDismiss}
-        className="rounded-md border border-line px-2 py-1 text-xs text-ink-600 hover:bg-surface-hover">
+        className="rounded-md border border-line px-2 py-1 text-xs text-ink-700 hover:bg-surface-hover">
 
           <XIcon className="h-3.5 w-3.5" />
         </button>
@@ -545,7 +545,7 @@ export function Devices() {
             </h2>
             {/* What else goes with it. A confirm that only asks "are you sure"
                 makes the user guess at the consequence. */}
-            <p className="mt-2 text-sm text-ink-600">
+            <p className="mt-2 text-sm text-ink-700">
               It disconnects immediately and cannot reconnect. Every permission it holds is
               revoked with it, and any task waiting on it will wait for another computer.
               You can connect it again later, but it will need a new code and new

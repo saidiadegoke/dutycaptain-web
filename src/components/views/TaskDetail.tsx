@@ -22,6 +22,7 @@ import {
 import { Panel } from '@/components/Panel';
 import { RetryDialog } from '@/components/views/RetryDialog';
 import { SearchRequestCard } from '@/components/SearchRequestCard';
+import { InputRequestCard } from '@/components/InputRequestCard';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { PlanHistory } from '@/components/PlanHistory';
 import { ModelContext } from '@/components/ModelContext';
@@ -33,7 +34,7 @@ import { TaskOutcome } from '@/components/task/TaskOutcome';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
 import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
-import type { Delivery, Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
+import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { ago } from '@/utils/format';
 
@@ -60,6 +61,7 @@ export function TaskDetail() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [retryMode, setRetryMode] = useState<'retry' | 'edit' | null>(null);
   const [searches, setSearches] = useState<SearchRequest[]>([]);
+  const [inputs, setInputs] = useState<InputRequest[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [endpointNames, setEndpointNames] = useState<Record<string, string>>({});
   const router = useRouter();
@@ -95,11 +97,15 @@ export function TaskDetail() {
   useEffect(() => {
     if (status !== 'waiting_for_input') {
       setSearches([]);
+      setInputs([]);
       return;
     }
     tasksApi.searchRequests(taskId).
     then((all) => setSearches(all.filter((r) => r.status === 'pending'))).
     catch(() => setSearches([]));
+    tasksApi.inputRequests(taskId).
+    then((all) => setInputs(all.filter((r) => r.status === 'pending'))).
+    catch(() => setInputs([]));
   }, [status, taskId]);
 
   const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
@@ -311,6 +317,17 @@ export function TaskDetail() {
               request={r}
               onDone={() => {
                 setSearches((all) => all.filter((x) => x.id !== r.id));
+                load(true);
+              }} />
+            )}
+
+              {inputs.map((r) =>
+            <InputRequestCard
+              key={r.id}
+              taskId={task.id}
+              request={r}
+              onDone={() => {
+                setInputs((all) => all.filter((x) => x.id !== r.id));
                 load(true);
               }} />
             )}

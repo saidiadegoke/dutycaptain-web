@@ -23,7 +23,7 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, SessionUser, Task, TaskBudget,
+  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
@@ -436,6 +436,37 @@ export const tasksApi = {
   },
 
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  /** Data this task asked its owner to collect. */
+  async inputRequests(id: string) {
+    const body = await request<{ data: InputRequest[] }>(`/tasks/${id}/input-requests`);
+    return body.data;
+  },
+
+  /** Answer with rows, pasted text and/or uploaded files — resumes the task. */
+  async answerInput(id: string, requestId: string, input: {
+    records?: Record<string, string>[]; text?: string; files?: string[]; notes?: string;
+  }) {
+    const body = await request<{ data: { resumed: boolean } }>(
+      `/tasks/${id}/input-requests/${requestId}/answer`, { method: 'POST', body: JSON.stringify(input) },
+    );
+    return body.data;
+  },
+
+  /** Say you could not collect it — the task continues without. */
+  async declineInput(id: string, requestId: string, notes?: string) {
+    const body = await request<{ data: { resumed: boolean } }>(
+      `/tasks/${id}/input-requests/${requestId}/decline`, { method: 'POST', body: JSON.stringify({ notes }) },
+    );
+    return body.data;
+  },
+
+  async uploadInputFile(id: string, requestId: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const body = await request<{ data: SearchUpload }>(`/tasks/${id}/input-requests/${requestId}/files`, { method: 'POST', body: form });
+    return body.data;
+  },
+
   /** Every send this task made to an endpoint, newest first. */
   async deliveries(id: string) {
     const body = await request<{ data: Delivery[] }>(`/tasks/${id}/deliveries`);

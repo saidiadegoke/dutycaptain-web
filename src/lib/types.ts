@@ -580,3 +580,18 @@ export interface SendResult {
   error?: string;
   durationMs?: number;
 }
+
+/** Data a `human.collect` step asked the task's owner to gather. */
+export interface InputRequest {
+  id: string;
+  task_id: string;
+  step_id: string | null;
+  instructions: string;
+  fields: { name: string; type: 'string' | 'number' | 'date' | 'boolean'; description?: string | null }[];
+  max_items: number;
+  status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
+  answer: { records: Record<string, unknown>[]; text: string | null; files: { name: string; file: string; chars: number; rows?: number }[]; notes: string | null } | null;
+  created_at: string;
+  answered_at: string | null;
+  expires_at: string;
+}
