@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, TerminalIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
-import { tasksApi, ApiError, endpointsApi } from '@/lib/api';
-import type { Endpoint } from '@/lib/types';
+import { tasksApi, ApiError, endpointsApi, schedulesApi } from '@/lib/api';
+import type { Endpoint, ScheduleMode } from '@/lib/types';
+import { ScheduleFields } from '@/components/ScheduleFields';
 
 /**
  * New task (P1-15).
@@ -42,6 +43,17 @@ export function NewTask() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [sendTo, setSendTo] = useState('');
   const [alsoOnFailure, setAlsoOnFailure] = useState(false);
+  const [reviewPlan, setReviewPlan] = useState(false);
+  const [repeat, setRepeat] = useState(false);
+  const [times, setTimes] = useState<string[]>(['08:00']);
+  const [days, setDays] = useState<number[]>([]);
+  const [timezone, setTimezone] = useState('UTC');
+  const [mode, setMode] = useState<ScheduleMode>('review_each');
+  const [runOnceNow, setRunOnceNow] = useState(false);
+
+  useEffect(() => {
+    try { setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'); } catch { /* UTC */ }
+  }, []);
 
   useEffect(() => { endpointsApi.list().then(setEndpoints).catch(() => setEndpoints([])); }, []);
 
@@ -51,11 +63,31 @@ export function NewTask() {
     setBusy(true);
     setError(null);
     try {
-      const task = await tasksApi.create(objective.trim(), sendTo ?
-      { deliver_to: { endpoint_id: sendTo, when: alsoOnFailure ? 'finished' : 'done' } } :
-      {});
-      // Straight to the detail page: the task is already running by the time
-      // this resolves, and the interesting part is watching it.
+      const deliverTo = sendTo ? { endpoint_id: sendTo, when: (alsoOnFailure ? 'finished' : 'done') as 'done' | 'finished' } : undefined;
+      const when = { times, days, timezone };
+
+      if (repeat && mode !== 'reuse_plan') {
+        // Plans at each run (and stops for review, in review_each).
+        await schedulesApi.create({ objective: objective.trim(), mode, ...when, ...(deliverTo ? { deliver_to: deliverTo } : {}) });
+        if (!runOnceNow) {
+          router.push('/app/schedules');
+          return;
+        }
+        const first = await tasksApi.create(objective.trim(), {
+          ...(deliverTo ? { deliver_to: deliverTo } : {}), review_plan: mode === 'review_each' || reviewPlan,
+        });
+        router.push(`/app/tasks/${first.id}`);
+        return;
+      }
+
+      const task = await tasksApi.create(objective.trim(), {
+        ...(deliverTo ? { deliver_to: deliverTo } : {}),
+        ...(reviewPlan ? { review_plan: true } : {}),
+        // Plan now, you review it, and every run reuses that plan.
+        ...(repeat && mode === 'reuse_plan' ? { schedule: when } : {})
+      });
+      // Straight to the detail page: the task is already running (or planning
+      // for your review) by the time this resolves.
       router.push(`/app/tasks/${task.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reach the API.');
@@ -91,6 +123,26 @@ export function NewTask() {
             className="w-full resize-y bg-transparent text-[14px] leading-relaxed text-ink-900 placeholder:text-ink-400 focus:outline-none" />
           
 
+          <div className="mt-3 space-y-3 border-t border-line pt-3 text-[12px]">
+            <label className="flex cursor-pointer items-start gap-2 text-ink-700">
+              <input type="checkbox" checked={reviewPlan || (repeat && mode !== 'auto')} disabled={repeat && mode !== 'auto'}
+              onChange={(e) => setReviewPlan(e.target.checked)} className="mt-0.5 cursor-pointer" />
+              <span>
+                <span className="font-medium text-ink-900">Review the plan before it runs</span>
+                <span className="block text-ink-500">It plans, then stops so you can choose how each step runs — or do a step yourself — and press Run.</span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-2 text-ink-700">
+              <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} className="mt-0.5 cursor-pointer" />
+              <span className="font-medium text-ink-900">Repeat on a schedule</span>
+            </label>
+            {repeat && <ScheduleFields
+              times={times} setTimes={setTimes} days={days} setDays={setDays}
+              timezone={timezone} setTimezone={setTimezone} mode={mode} setMode={setMode}
+              runOnceNow={runOnceNow} setRunOnceNow={setRunOnceNow} />}
+          </div>
+
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px]">
             <label className="inline-flex items-center gap-2 text-ink-700">
               When it’s done, send the result to
@@ -125,7 +177,7 @@ export function NewTask() {
               disabled={!objective.trim() || busy}
               className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3.5 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500 disabled:opacity-50">
               
-              {busy ? 'Starting…' : 'Start task'}
+              {busy ? 'Starting…' : repeat ? (mode === 'reuse_plan' ? 'Plan it now' : runOnceNow ? 'Save schedule and start' : 'Save schedule') : reviewPlan ? 'Plan it' : 'Start task'}
               <ArrowRightIcon className="h-3.5 w-3.5" strokeWidth={2.4} />
             </button>
           </div>

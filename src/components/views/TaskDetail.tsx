@@ -31,6 +31,7 @@ import { AuditChain } from '@/components/AuditChain';
 import { CostPanel } from '@/components/CostPanel';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { TaskOutcome } from '@/components/task/TaskOutcome';
+import { PlanReview } from '@/components/task/PlanReview';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
 import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
@@ -320,6 +321,8 @@ export function TaskDetail() {
                 load(true);
               }} />
             )}
+
+              {task.status === 'waiting_for_review' && <PlanReview task={task} onChanged={() => load(true)} />}
 
               {inputs.map((r) =>
             <InputRequestCard

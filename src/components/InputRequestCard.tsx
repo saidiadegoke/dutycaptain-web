@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ClipboardListIcon, FileTextIcon, PlusIcon, UploadIcon, XIcon } from 'lucide-react';
+import { ClipboardListIcon, DownloadIcon, FileTextIcon, PlusIcon, UploadIcon, XIcon } from 'lucide-react';
 import { ApiError, tasksApi } from '@/lib/api';
 import type { InputRequest, SearchUpload } from '@/lib/types';
 
@@ -91,6 +91,8 @@ export function InputRequestCard({ taskId, request, onDone }: {taskId: string;re
         Waiting until {expires.toLocaleString()}; after that the task continues without it.
       </p>
 
+      <Guide request={request} />
+
       {fields.length > 0 &&
       <div className="mt-4 overflow-x-auto rounded-lg border border-line bg-panel">
           <table className="w-full text-[12px]">
@@ -114,7 +116,7 @@ export function InputRequestCard({ taskId, request, onDone }: {taskId: string;re
                   value={r[f.name]}
                   onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, [f.name]: e.target.value } : x))}
                   inputMode={f.type === 'number' ? 'decimal' : undefined}
-                  placeholder={f.description || ''}
+                  placeholder={f.example ? `e.g. ${f.example}` : f.description || ''}
                   aria-label={`${f.name} row ${i + 1}`}
                   className={field} />
                     </td>
@@ -129,6 +131,10 @@ export function InputRequestCard({ taskId, request, onDone }: {taskId: string;re
             )}
             </tbody>
           </table>
+          <p className="mx-2 mt-1 text-[11px] text-ink-500">
+            {filled.length} row{filled.length === 1 ? '' : 's'} · asked for {request.min_items && request.min_items > 1 ? `${request.min_items} to ` : 'up to '}{request.max_items}
+            {request.min_items && filled.length > 0 && filled.length < request.min_items ? ' — fewer than asked; send anyway if that is all there is' : ''}
+          </p>
           {rows.length < request.max_items &&
         <button type="button" onClick={() => setRows([...rows, blank()])}
         className="m-2 inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500">
@@ -183,5 +189,95 @@ export function InputRequestCard({ taskId, request, onDone }: {taskId: string;re
         </button>
       </div>
     </section>);
+
+}
+
+/** A CSV template: the columns asked for, and the sample row. */
+function templateCsv(request: InputRequest): string {
+  const esc = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  const cols = request.fields.map((f) => f.name);
+  const sample = request.guide?.examples?.[0] || {};
+  return `${cols.map(esc).join(',')}\n${cols.map((c) => esc(String(sample[c] ?? ''))).join(',')}\n`;
+}
+
+function downloadTemplate(request: InputRequest) {
+  const blob = new Blob([templateCsv(request)], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const isUrl = (s: string) => /^https?:\/\//i.test(s);
+
+/** How to do it, where, what each column means, and what one row looks like. */
+function Guide({ request }: {request: InputRequest;}) {
+  const guide = request.guide;
+  const sample = guide?.examples?.[0];
+  return (
+    <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg border border-line bg-panel p-4 md:grid-cols-2">
+      {guide?.steps && guide.steps.length > 0 &&
+      <div>
+          <h3 className="text-[12px] font-semibold text-ink-700">How to do it</h3>
+          <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed text-ink-900">
+            {guide.steps.map((step, i) => <li key={i}>{step}</li>)}
+          </ol>
+          {guide.where.length > 0 &&
+        <p className="mt-2 text-[12px] text-ink-700">
+              Where:{' '}
+              {guide.where.map((w, i) =>
+          <span key={i}>{i > 0 && ', '}{isUrl(w) ?
+            <a href={w} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline hover:text-brand-500">{w}</a> :
+            w}</span>
+          )}
+            </p>
+        }
+        </div>
+      }
+      {request.fields.length > 0 &&
+      <div>
+          <h3 className="text-[12px] font-semibold text-ink-700">What to send — one row each</h3>
+          <dl className="mt-1.5 space-y-1.5 text-[12px]">
+            {request.fields.map((f) =>
+          <div key={f.name}>
+                <dt className="inline font-mono font-medium text-ink-900">{f.name}</dt>
+                <span className="text-ink-400"> · {f.type}</span>
+                {f.description && <dd className="inline text-ink-700"> — {f.description}</dd>}
+                {f.example && <dd className="text-ink-500">e.g. <span className="font-mono text-ink-700">{f.example}</span></dd>}
+              </div>
+          )}
+          </dl>
+          <p className="mt-2 text-[12px] text-ink-500">
+            How many: {request.min_items && request.min_items > 1 ? `${request.min_items} to ${request.max_items}` : `up to ${request.max_items}`} rows.
+          </p>
+        </div>
+      }
+      {sample &&
+      <div className="md:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-[12px] font-semibold text-ink-700">Example</h3>
+            <button type="button" onClick={() => downloadTemplate(request)}
+          className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500">
+              <DownloadIcon className="h-3.5 w-3.5" strokeWidth={2.2} /> Download a CSV template
+            </button>
+          </div>
+          <div className="mt-1.5 overflow-x-auto rounded-md border border-line">
+            <table className="w-full text-[12px]">
+              <thead className="bg-canvas">
+                <tr>{request.fields.map((f) => <th key={f.name} className="px-2.5 py-1.5 text-left font-semibold text-ink-700">{f.name}</th>)}</tr>
+              </thead>
+              <tbody>
+                <tr>{request.fields.map((f) => <td key={f.name} className="px-2.5 py-1.5 font-mono text-ink-700">{sample[f.name] ?? ''}</td>)}</tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] text-ink-500">
+            Send it any of these ways: fill the table below; upload a CSV with these columns (it becomes rows); or upload/paste a page, PDF or text and the task reads it.
+          </p>
+        </div>
+      }
+    </div>);
 
 }

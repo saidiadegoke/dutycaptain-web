@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ActivityIcon,
+  CalendarClockIcon,
   CpuIcon,
   FileBoxIcon,
   GaugeIcon,
@@ -23,6 +24,7 @@ import {
 const nav = [
 { to: '/app', label: 'Overview', icon: GaugeIcon, end: true },
 { to: '/app/tasks', label: 'Tasks', icon: ListChecksIcon },
+{ to: '/app/schedules', label: 'Schedules', icon: CalendarClockIcon },
 { to: '/app/approvals', label: 'Approvals', icon: ShieldCheckIcon, countsApprovals: true },
 { to: '/app/artifacts', label: 'Artifacts', icon: FileBoxIcon },
 { to: '/app/models', label: 'Runtime', icon: CpuIcon },
@@ -54,6 +56,7 @@ function displayName(user: SessionUser | null): string {
 const crumbs: Record<string, string> = {
   '/app': 'Overview',
   '/app/tasks': 'Tasks',
+  '/app/schedules': 'Schedules',
   '/app/approvals': 'Approvals',
   '/app/artifacts': 'Artifacts',
   '/app/models': 'Runtime',

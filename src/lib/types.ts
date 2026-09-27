@@ -17,6 +17,7 @@ export type TaskStatus =
   | 'queued'
   | 'planning'
   | 'running'
+  | 'waiting_for_review'
   | 'waiting_for_approval'
   | 'waiting_for_device'
   | 'waiting_for_budget'
@@ -155,6 +156,12 @@ export interface Task {
   error: { code?: string; message?: string } | null;
   /** Where its result is sent when it finishes. */
   delivery?: { endpoint_id: string; when: 'done' | 'finished' } | null;
+  /** Stops after planning for its owner to review (migration 054). */
+  review_plan?: boolean;
+  plan_approved_at?: string | null;
+  /** The schedule its reviewed plan becomes, once approved. */
+  pending_schedule?: { name: string | null; times: string[]; days: number[]; timezone: string } | null;
+  schedule_id?: string | null;
   /** What a finished task came to, in words (detail only; null until done). */
   outcome?: { summary: string | null; steps_run: number | null; steps_failed: number; steps_skipped: number } | null;
   /** 1 for an original; 2+ for a retry. */
@@ -438,7 +445,7 @@ export const TERMINAL: TaskStatus[] = ['done', 'failed', 'cancelled'];
 
 /** Alive, but waiting on something rather than working. */
 export const SUSPENDED: TaskStatus[] = [
-  'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'waiting_for_input', 'paused',
+  'waiting_for_review', 'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'waiting_for_input', 'paused',
 ];
 
 export const isTerminal = (s: TaskStatus) => TERMINAL.includes(s);
@@ -587,11 +594,48 @@ export interface InputRequest {
   task_id: string;
   step_id: string | null;
   instructions: string;
-  fields: { name: string; type: 'string' | 'number' | 'date' | 'boolean'; description?: string | null }[];
+  fields: { name: string; type: 'string' | 'number' | 'date' | 'boolean'; description?: string | null; example?: string | null }[];
   max_items: number;
+  min_items?: number;
+  /** How to do it: numbered steps, where to go, and a sample row. */
+  guide?: { steps: string[]; where: string[]; examples: Record<string, string>[] } | null;
   status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
   answer: { records: Record<string, unknown>[]; text: string | null; files: { name: string; file: string; chars: number; rows?: number }[]; notes: string | null } | null;
   created_at: string;
   answered_at: string | null;
   expires_at: string;
+}
+
+export type ScheduleMode = 'reuse_plan' | 'review_each' | 'auto';
+
+export interface Schedule {
+  id: string;
+  name: string;
+  objective: string;
+  mode: ScheduleMode;
+  times: string[];
+  /** 0 = Sunday … 6 = Saturday; empty = every day. */
+  days: number[];
+  timezone: string;
+  steps: { key: string; title: string; capability: string }[] | null;
+  deliver_to: { endpoint_id: string; when: 'done' | 'finished' } | null;
+  enabled: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_task_id: string | null;
+  last_skip_reason: string | null;
+  run_count: number;
+  created_at: string;
+  runs?: { id: string; status: TaskStatus; created_at: string; finished_at: string | null }[];
+}
+
+export interface Capability {
+  name: string;
+  description: string;
+}
+
+export interface PersonSites {
+  sites: string[];
+  custom: boolean;
+  defaults: string[];
 }

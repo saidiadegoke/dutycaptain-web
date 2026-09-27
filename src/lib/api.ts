@@ -23,7 +23,7 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, SessionUser, Task, TaskBudget,
+  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
 } from './types';
 
@@ -344,6 +344,10 @@ export const tasksApi = {
   async create(objective: string, options: {
     start?: boolean; budget?: Record<string, unknown>;
     deliver_to?: { endpoint_id: string; when: 'done' | 'finished' };
+    /** Stop after planning for review. */
+    review_plan?: boolean;
+    /** Plan now, review, and reuse the plan on this schedule. */
+    schedule?: { name?: string; times: string[]; days?: number[]; timezone: string };
   } = {}) {
     const body = await request<{ data: Task }>('/tasks', {
       method: 'POST',
@@ -436,6 +440,26 @@ export const tasksApi = {
   },
 
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  /** The tools a step can use — what a plan reviewer chooses from. */
+  async capabilities() {
+    const body = await request<{ data: Capability[] }>('/tasks/capabilities');
+    return body.data;
+  },
+
+  /** While the plan waits for review: change which tool runs a step. */
+  async setStepTool(id: string, stepId: string, capability: string) {
+    const body = await request<{ data: Step }>(`/tasks/${id}/steps/${stepId}/tool`, { method: 'PUT', body: JSON.stringify({ capability }) });
+    return body.data;
+  },
+
+  /** Run the reviewed plan; `runNow: false` only saves its schedule. */
+  async approvePlan(id: string, runNow = true) {
+    const body = await request<{ data: { running: boolean; schedule: Schedule | null } }>(
+      `/tasks/${id}/plan/approve`, { method: 'POST', body: JSON.stringify({ run_now: runNow }) },
+    );
+    return body.data;
+  },
+
   /** Data this task asked its owner to collect. */
   async inputRequests(id: string) {
     const body = await request<{ data: InputRequest[] }>(`/tasks/${id}/input-requests`);
@@ -579,6 +603,47 @@ export const endpointsApi = {
   /** Sends a sample for real, and says what came back. */
   async test(id: string) {
     const body = await request<{ data: SendResult }>(`/endpoints/${id}/test`, { method: 'POST' });
+    return body.data;
+  },
+};
+
+export const schedulesApi = {
+  async list() {
+    const body = await request<{ data: Schedule[] }>('/schedules');
+    return body.data;
+  },
+  async get(id: string) {
+    const body = await request<{ data: Schedule }>(`/schedules/${id}`);
+    return body.data;
+  },
+  async create(input: {
+    objective: string; mode: 'review_each' | 'auto'; times: string[]; days?: number[]; timezone: string;
+    name?: string; deliver_to?: { endpoint_id: string; when: 'done' | 'finished' };
+  }) {
+    const body = await request<{ data: Schedule }>('/schedules', { method: 'POST', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async update(id: string, input: Partial<Pick<Schedule, 'name' | 'times' | 'days' | 'timezone' | 'enabled'>>) {
+    const body = await request<{ data: Schedule }>(`/schedules/${id}`, { method: 'PUT', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async remove(id: string) {
+    await request(`/schedules/${id}`, { method: 'DELETE' });
+  },
+  async runNow(id: string) {
+    const body = await request<{ data: { task_id: string } }>(`/schedules/${id}/run`, { method: 'POST' });
+    return body.data;
+  },
+};
+
+export const personSitesApi = {
+  async get() {
+    const body = await request<{ data: PersonSites }>('/person-sites');
+    return body.data;
+  },
+  /** `null` goes back to the defaults. */
+  async set(sites: string[] | null) {
+    const body = await request<{ data: PersonSites }>('/person-sites', { method: 'PUT', body: JSON.stringify({ sites }) });
     return body.data;
   },
 };

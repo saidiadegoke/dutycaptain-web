@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { EndpointsPanel } from '@/components/settings/EndpointsPanel';
+import { PersonSitesPanel } from '@/components/settings/PersonSitesPanel';
 import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
 import { adminApi, ApiError, configApi, notificationsApi, searchApi, session } from '@/lib/api';
 import type { NotificationPreferences, SearchSettings } from '@/lib/types';
@@ -367,6 +368,7 @@ export function Settings() {
       </div>
       {error && <p role="alert" className="text-[13px] text-danger-700">{error}</p>}
       {data && <AccountSearchPanel data={data} onSaved={setData} />}
+      <PersonSitesPanel />
       <EndpointsPanel />
       <EmailPanel />
       {admin && data && <PlatformSearchPanel data={data} onSaved={load} />}

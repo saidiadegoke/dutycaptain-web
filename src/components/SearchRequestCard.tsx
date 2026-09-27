@@ -126,6 +126,28 @@ export function SearchRequestCard({
         </a>
       </div>
 
+      <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg border border-line bg-panel p-4 text-[12px] md:grid-cols-2">
+        <div>
+          <h3 className="font-semibold text-ink-700">How to do it</h3>
+          <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed text-ink-900">
+            <li>Press <span className="font-medium">Open the search</span> — it opens in your own browser.</li>
+            <li>Open the {request.max_results > 1 ? `best ${Math.min(request.max_results, 5)} results` : 'best result'} that actually answer it.</li>
+            <li>For each, copy its link, and paste the part of the page that answers the question.</li>
+            <li>Or save a page (or a PDF) and upload it instead.</li>
+          </ol>
+        </div>
+        <div>
+          <h3 className="font-semibold text-ink-700">What to send — one per result</h3>
+          <dl className="mt-1.5 space-y-1.5">
+            <div><dt className="inline font-mono font-medium text-ink-900">link</dt><dd className="inline text-ink-700"> — the page’s address</dd>
+              <dd className="text-ink-500">e.g. <span className="font-mono text-ink-700">https://www.example.ng/fuel-prices</span></dd></div>
+            <div><dt className="inline font-mono font-medium text-ink-900">text</dt><dd className="inline text-ink-700"> — the sentence or table row that answers it (helps most)</dd>
+              <dd className="text-ink-500">e.g. <span className="text-ink-700">“Petrol sells at ₦1,050 per litre in Lagos this week.”</span></dd></div>
+            <div><dt className="inline font-mono font-medium text-ink-900">title</dt><dd className="inline text-ink-700"> — optional, the page’s title</dd></div>
+          </dl>
+        </div>
+      </div>
+
       <div className="mt-4 space-y-3">
         {findings.map((f, i) =>
         <div key={i} className="rounded-lg border border-line bg-panel p-3">

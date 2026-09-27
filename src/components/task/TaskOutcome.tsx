@@ -37,6 +37,7 @@ const FAILURE_TITLES: Record<string, string> = {
 export const failureTitle = (code?: string | null) => code && FAILURE_TITLES[code] || 'The task did not finish';
 
 const WAITING: Partial<Record<TaskDetail['status'], string>> = {
+  waiting_for_review: 'The plan is ready. Review it above — choose how each step runs — then press Run.',
   waiting_for_approval: 'It is waiting for you to approve an action.',
   waiting_for_input: 'It is waiting for you — see the request above.',
   waiting_for_device: 'It is waiting for your computer to come online.',
