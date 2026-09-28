@@ -34,7 +34,12 @@ const READINGS: {
   read: (b) => (b.used.tokensIn || 0) + (b.used.tokensOut || 0),
   show: (n) => n.toLocaleString(),
 },
-{ key: 'steps', label: 'Steps', read: () => 0, show: (n) => String(n) }];
+{ key: 'steps', label: 'Steps', read: () => 0, show: (n) => String(n) },
+// Phase 0: every AI call (extraction and vision included), web request and
+// action outside is counted, and each can be capped.
+{ key: 'modelCalls', label: 'AI calls', read: (b) => b.used.calls || 0, show: (n) => n.toLocaleString() },
+{ key: 'webRequests', label: 'Web requests', read: (b) => b.used.webRequests || 0, show: (n) => n.toLocaleString() },
+{ key: 'externalActions', label: 'Actions outside', read: (b) => b.used.externalActions || 0, show: (n) => n.toLocaleString() }];
 
 
 export function BudgetPanel({
@@ -70,7 +75,7 @@ export function BudgetPanel({
   const rows = READINGS.
   filter((r) => (budget.caps[r.key] || 0) > 0).
   map((r) => {
-    const cap = budget.caps[r.key];
+    const cap = budget.caps[r.key] || 0;
     const used = r.read(budget);
     return { ...r, cap, used, pct: Math.min(100, Math.round((used / cap) * 100)) };
   });

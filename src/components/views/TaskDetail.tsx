@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { MarkdownText, firstLine } from '@/components/MarkdownText';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -12,6 +13,7 @@ import {
   InfoIcon,
   ListIcon,
   PauseIcon,
+  PaperclipIcon,
   PencilIcon,
   PlayIcon,
   RotateCcwIcon,
@@ -23,6 +25,8 @@ import { Panel } from '@/components/Panel';
 import { RetryDialog } from '@/components/views/RetryDialog';
 import { SearchRequestCard } from '@/components/SearchRequestCard';
 import { InputRequestCard } from '@/components/InputRequestCard';
+import { ConfirmRequestCard } from '@/components/ConfirmRequestCard';
+import { TaskSources } from '@/components/task/TaskSources';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { PlanHistory } from '@/components/PlanHistory';
 import { ModelContext } from '@/components/ModelContext';
@@ -37,7 +41,7 @@ import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
 import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
-import { ago } from '@/utils/format';
+import { ago, bytes } from '@/utils/format';
 
 /**
  * Task detail (P1-15), laid out like a CI run page: the OUTCOME first — the
@@ -96,17 +100,19 @@ export function TaskDetail() {
   // Searches waiting for the owner: read whenever the task is paused for one.
   const status = task?.status;
   useEffect(() => {
+    if (!status) return;
+    // "Did it arrive?" can be asked after a task finished — its result was sent
+    // and the answer was lost — so requests are read in every state.
+    tasksApi.inputRequests(taskId).
+    then((all) => setInputs(all.filter((r) => r.status === 'pending'))).
+    catch(() => setInputs([]));
     if (status !== 'waiting_for_input') {
       setSearches([]);
-      setInputs([]);
       return;
     }
     tasksApi.searchRequests(taskId).
     then((all) => setSearches(all.filter((r) => r.status === 'pending'))).
     catch(() => setSearches([]));
-    tasksApi.inputRequests(taskId).
-    then((all) => setInputs(all.filter((r) => r.status === 'pending'))).
-    catch(() => setInputs([]));
   }, [status, taskId]);
 
   const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
@@ -194,9 +200,23 @@ export function TaskDetail() {
           <div className="flex items-center gap-2.5">
             <TaskStatusBadge status={task.status} />
             {(task.attempt ?? 1) > 1 && <span className="text-[11px] text-ink-500">Attempt {task.attempt}</span>}
+            {task.sim_run_id &&
+            <span className="rounded border border-brand-200 bg-brand-50 px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-wide text-brand-700" title={`Created by the Simulator (${task.sim_run_id})`}>
+                Simulated
+              </span>
+            }
+            {task.flags?.injection &&
+            <span className="rounded border border-warn-100 bg-warn-50 px-1.5 py-[1px] text-[10px] font-semibold text-warn-700"
+            title={`Read as data, not obeyed: ${task.flags.injection.sources.map((x) => x.locator).join(', ')}`}>
+                Read content that tried to give orders — actions need your approval
+              </span>
+            }
+            {(task.interruptions ?? 0) > 0 &&
+            <span className="text-[11px] text-ink-500">Picked up after {task.interruptions} restart{task.interruptions === 1 ? '' : 's'}</span>
+            }
           </div>
           <h1 className="mt-2 max-w-3xl text-[22px] font-semibold leading-snug tracking-tight text-ink-900">
-            “{task.objective}”
+            {firstLine(task.objective)}
           </h1>
         </div>
 
@@ -324,16 +344,40 @@ export function TaskDetail() {
 
               {task.status === 'waiting_for_review' && <PlanReview task={task} onChanged={() => load(true)} />}
 
-              {inputs.map((r) =>
-            <InputRequestCard
-              key={r.id}
-              taskId={task.id}
-              request={r}
-              onDone={() => {
+              {inputs.map((r) => {
+              const done = () => {
                 setInputs((all) => all.filter((x) => x.id !== r.id));
                 load(true);
-              }} />
-            )}
+              };
+              return r.kind === 'confirm' ?
+              <ConfirmRequestCard key={r.id} taskId={task.id} request={r} onDone={done} /> :
+              <InputRequestCard key={r.id} taskId={task.id} request={r} onDone={done} />;
+            })}
+
+              <TaskSources taskId={task.id} />
+
+              {/* What was asked, in full — formatting and the files it came with. */}
+              {(task.objective.trim().includes('\n') || /[*_`]/.test(task.objective) || (task.attachments || []).length > 0) &&
+            <section className="rounded-xl border border-line bg-panel px-5 py-4 shadow-panel">
+                  <h2 className="text-[12px] font-semibold text-ink-700">What you asked</h2>
+                  <MarkdownText text={task.objective} className="mt-1.5 text-[13px] leading-relaxed text-ink-900" />
+                  {(task.attachments || []).length > 0 &&
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                      {(task.attachments || []).map((a) =>
+                <li key={a.name}>
+                          <button type="button" onClick={() => tasksApi.downloadAttachment(task.id, a.name).catch(() => {})}
+                    title={a.columns ? `Columns: ${a.columns.join(', ')}` : a.preview || a.name}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line bg-canvas px-2 py-1 text-[12px] text-ink-900 hover:border-brand-200">
+                            <PaperclipIcon className="h-3.5 w-3.5 text-ink-500" strokeWidth={2} />
+                            {a.name}
+                            <span className="text-ink-400">{bytes(a.bytes)}</span>
+                          </button>
+                        </li>
+                )}
+                    </ul>
+              }
+                </section>
+            }
 
               <TaskOutcome
               task={task}

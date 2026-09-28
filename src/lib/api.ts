@@ -23,8 +23,8 @@
 
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
-  DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, SessionUser, Task, TaskBudget,
-  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent,
+  ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
+  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -142,14 +142,42 @@ async function authedFetch(url: string, init: RequestInit = {}): Promise<Respons
   return ok ? fetch(url, { ...init, headers: authHeaders(init.headers) }) : res;
 }
 
+/**
+ * The UI simulator (src/sim; docs/DUTYCAPTAIN_UI_SIMULATION.md). While a run is
+ * going, every request carries its run id, so the API treats it as a
+ * simulation — the same endpoints and behaviour, with what it creates tagged —
+ * and each exchange is recorded for the run's results. Set only by the
+ * Simulator, and only for the length of a scenario.
+ */
+export interface SimExchange {
+  method: string;
+  path: string;
+  status?: number;
+  requestBody?: unknown;
+  responseBody?: unknown;
+  durationMs: number;
+  error?: string;
+}
+export const simScope: { runId: string | null; record: ((e: SimExchange) => void) | null } = { runId: null, record: null };
+
 function authHeaders(extra?: HeadersInit, multipart = false): HeadersInit {
   const token = session.accessToken();
   return {
     // A multipart body sets its own Content-Type, boundary included.
     ...(multipart ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(simScope.runId ? { 'X-Sim-Run-Id': simScope.runId } : {}),
     ...extra,
   };
+}
+
+function recordSim(init: RequestInit, path: string, started: number, status?: number, responseBody?: unknown, error?: string) {
+  if (!simScope.record) return;
+  let requestBody: unknown = undefined;
+  if (typeof init.body === 'string') {
+    try { requestBody = JSON.parse(init.body); } catch { requestBody = init.body; }
+  }
+  simScope.record({ method: (init.method || 'GET').toUpperCase(), path, status, requestBody, responseBody, durationMs: Date.now() - started, error });
 }
 
 /**
@@ -162,6 +190,7 @@ function authHeaders(extra?: HeadersInit, multipart = false): HeadersInit {
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const multipart = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const used = session.accessToken();
+  const started = Date.now();
   const res = await fetch(`${BASE}${path}`, { ...init, headers: authHeaders(init.headers, multipart) });
 
   if (res.status === 401 && retry) {
@@ -180,6 +209,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
     // parse error that hides the status the caller needs to see.
   }
 
+  recordSim(init, path, started, res.status, body, res.ok ? undefined : body?.message);
   if (!res.ok) {
     throw new ApiError(body?.message || `Request failed (${res.status})`, res.status, body?.details);
   }
@@ -440,6 +470,47 @@ export const tasksApi = {
   },
 
   /** Fetch an artifact's bytes with the session's token, and hand them to the browser. */
+  /** Attach a file to a task that has not started (create it with `start: false`). */
+  async addAttachment(id: string, file: File, { sensitive = false }: { sensitive?: boolean } = {}) {
+    const form = new FormData();
+    // Sensitive: kept for this task only, and the task asks before sending anything outside.
+    if (sensitive) form.append('sensitive', 'true');
+    form.append('file', file);
+    const body = await request<{ data: { attachment: TaskAttachment; attachments: TaskAttachment[] } }>(
+      `/tasks/${id}/attachments`, { method: 'POST', body: form },
+    );
+    return body.data;
+  },
+
+  /** Take an attachment back off a task that has not started. */
+  async removeAttachment(id: string, name: string) {
+    await request(`/tasks/${id}/attachments/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  },
+
+  /** What the task worked from: each source and its versions (migration 060). */
+  async sources(id: string) {
+    const body = await request<{ data: TaskSource[] }>(`/tasks/${id}/sources`);
+    return body.data;
+  },
+
+  /** Start a task created with `start: false`. */
+  async start(id: string) {
+    const body = await request<{ data: Task }>(`/tasks/${id}/start`, { method: 'POST' });
+    return body.data;
+  },
+
+  /** Download a file attached to the task. */
+  async downloadAttachment(id: string, name: string) {
+    const res = await authedFetch(`${BASE}/tasks/${id}/attachments/${encodeURIComponent(name)}`);
+    if (!res.ok) throw new ApiError(`Could not download ${name}`, res.status);
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   /** The tools a step can use — what a plan reviewer chooses from. */
   async capabilities() {
     const body = await request<{ data: Capability[] }>('/tasks/capabilities');
@@ -472,6 +543,14 @@ export const tasksApi = {
   }) {
     const body = await request<{ data: { resumed: boolean } }>(
       `/tasks/${id}/input-requests/${requestId}/answer`, { method: 'POST', body: JSON.stringify(input) },
+    );
+    return body.data;
+  },
+
+  /** Answer "did it happen?" — a send whose outcome was unknown, or a step a restart cut off. */
+  async confirmInput(id: string, requestId: string, input: { happened: boolean; reference?: string; notes?: string }) {
+    const body = await request<{ data: { resumed: boolean } }>(
+      `/tasks/${id}/input-requests/${requestId}/confirm`, { method: 'POST', body: JSON.stringify(input) },
     );
     return body.data;
   },
@@ -584,6 +663,24 @@ export const tasksApi = {
  * reason it is its own API module: an approval is a thing a PERSON has, not a
  * thing a task has. The queue is "what is waiting on me" across every task.
  */
+/**
+ * Account API keys. A key lets another system create tasks in this account and
+ * read them back — nothing else (dutycaptain-api requireAuthOrApiKey).
+ */
+export const apiKeysApi = {
+  async list() {
+    const body = await request<{ data: ApiKey[] }>('/api-keys');
+    return body.data;
+  },
+  async create(name: string) {
+    const body = await request<{ data: ApiKey & { key: string } }>('/api-keys', { method: 'POST', body: JSON.stringify({ name }) });
+    return body.data;
+  },
+  async revoke(id: string) {
+    await request(`/api-keys/${id}`, { method: 'DELETE' });
+  },
+};
+
 export const endpointsApi = {
   async list() {
     const body = await request<{ data: Endpoint[] }>('/endpoints');
@@ -930,3 +1027,43 @@ export function streamTaskEvents(
 }
 
 export { BASE as API_BASE };
+
+// --- the UI simulator (admin; docs/DUTYCAPTAIN_UI_SIMULATION.md) ------------
+
+export interface SimHealth {
+  enabled: boolean;
+  self_url: string;
+  queue: 'bullmq' | 'in-process';
+  ai: { provider?: string; model?: string; providers?: string[] } | null;
+  retain_hours: number;
+  receiver_slow_ms: number;
+  server_time: string;
+}
+export interface SimRunCounts { tasks: number; endpoints: number; schedules: number; deliveries: number; receiver_hits: number; spent_usd: number }
+export interface SimRun { run_id: string; created_at: string; last_seen_at: string; purged_at: string | null; purged: Record<string, number> | null; counts: SimRunCounts | null }
+export interface ReceiverHit { name: string; n: number; behaviour: string; idempotency_key: string | null; effect: boolean; duplicate: boolean; body: unknown; created_at: string }
+export interface ReceiverReport { hits: ReceiverHit[]; requests: number; effects: number; duplicates: number }
+
+export const simApi = {
+  async health() {
+    return (await request<{ data: SimHealth }>('/sim/health')).data;
+  },
+  async runs() {
+    return (await request<{ data: SimRun[] }>('/sim/runs')).data;
+  },
+  async run(runId: string) {
+    return (await request<{ data: SimRun }>(`/sim/runs/${runId}`)).data;
+  },
+  async receiver(runId: string, name?: string) {
+    return (await request<{ data: ReceiverReport }>(`/sim/runs/${runId}/receiver${name ? `?name=${encodeURIComponent(name)}` : ''}`)).data;
+  },
+  async purge(runId: string) {
+    return (await request<{ data: Record<string, number> }>(`/sim/runs/${runId}`, { method: 'DELETE' })).data;
+  },
+  /** A state a click can't reach (a process that died mid-step), built inside the current run. */
+  async interruptedTask(input: { capability: string; objective: string; title?: string; args?: Record<string, unknown>; mid_send?: boolean; interruptions?: number }) {
+    return (await request<{ data: { task_id: string; step_id: string; delivery_id: string | null } }>('/sim/fixtures', {
+      method: 'POST', body: JSON.stringify({ kind: 'interrupted-task', ...input }),
+    })).data;
+  },
+};

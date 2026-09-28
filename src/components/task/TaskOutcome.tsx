@@ -276,7 +276,9 @@ export function TaskOutcome({ task, onRetry, deliveries = [], deliveryTo = null,
             {task.steps.length ? `In progress — ${doneCount} of ${task.steps.length} steps done` : 'Getting started'}
           </h2>
           <p className="mt-1 text-[14px] leading-relaxed text-ink-800">
-            {WAITING[task.status] || (running.length ?
+            {task.status === 'paused' && task.resume_at ?
+            `The AI service isn’t answering right now, so it’s waiting rather than failing. It will try again at ${new Date(task.resume_at).toLocaleTimeString()}${task.ai_waits && task.ai_waits > 1 ? ` (wait ${task.ai_waits})` : ''} — or press Resume to try now.` :
+            WAITING[task.status] || (running.length ?
             `Now: ${running.map((s) => s.title).join('; ')}.` :
             'Deciding the next step.')}
           </p>

@@ -14,7 +14,14 @@ const LABEL: Record<Delivery['status'], string> = {
   sent: 'Sent',
   failed: 'Failed',
   denied: 'Not sent — you declined',
-  expired: 'Not sent — the approval expired'
+  expired: 'Not sent — the approval expired',
+  unknown: 'Sent — no answer yet, checking',
+  checking: 'Waiting for you to confirm it arrived'
+};
+
+const SETTLED: Record<string, string> = {
+  repeat: 'confirmed by asking again with the same Idempotency-Key',
+  person: 'confirmed by you'
 };
 
 const TRIGGER: Record<Delivery['trigger'], string> = {
@@ -26,7 +33,7 @@ const TRIGGER: Record<Delivery['trigger'], string> = {
 
 function Icon({ status }: {status: Delivery['status'];}) {
   if (status === 'sent') return <CheckCircle2Icon className="h-4 w-4 shrink-0 text-ok-600" strokeWidth={2.2} />;
-  if (status === 'waiting_approval' || status === 'pending' || status === 'sending') return <ClockIcon className="h-4 w-4 shrink-0 text-warn-600" strokeWidth={2.2} />;
+  if (status === 'waiting_approval' || status === 'pending' || status === 'sending' || status === 'unknown' || status === 'checking') return <ClockIcon className="h-4 w-4 shrink-0 text-warn-600" strokeWidth={2.2} />;
   return <XCircleIcon className="h-4 w-4 shrink-0 text-danger-600" strokeWidth={2.2} />;
 }
 
@@ -88,7 +95,13 @@ export function Deliveries({ taskId, deliveries, pendingTo, onChanged }: {
                   <p className="text-[11px] text-ink-500">
                     {TRIGGER[d.trigger]} · {ago(d.sent_at || d.created_at)}
                     {d.request?.method && d.request?.url ? ` · ${d.request.method} ${d.request.url}` : ''}
+                    {d.settled_by && SETTLED[d.settled_by] ? ` · ${SETTLED[d.settled_by]}` : ''}
                   </p>
+                  {d.status === 'checking' &&
+                  <p className="mt-1 text-[12px] text-warn-700">
+                      DutyCaptain couldn&rsquo;t tell whether it arrived, so it won&rsquo;t send it again until you answer the question above.
+                    </p>
+                  }
                   {d.error && d.status !== 'denied' && d.status !== 'expired' && <p className="mt-1 text-[12px] text-danger-700">{d.error}</p>}
                 </div>
                 {d.status === 'waiting_approval' && d.approval_id &&

@@ -9,7 +9,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ActivityIcon,
+  ArrowLeftIcon,
   CalendarClockIcon,
+  FlaskConicalIcon,
+  LockKeyholeIcon,
   CpuIcon,
   FileBoxIcon,
   GaugeIcon,
@@ -21,7 +24,10 @@ import {
   ShieldCheckIcon } from
 'lucide-react';
 
-const nav = [
+type NavItem = {to: string;label: string;icon: typeof GaugeIcon;end?: boolean;countsApprovals?: boolean;};
+
+/** The console: what every account sees. */
+const APP_NAV: NavItem[] = [
 { to: '/app', label: 'Overview', icon: GaugeIcon, end: true },
 { to: '/app/tasks', label: 'Tasks', icon: ListChecksIcon },
 { to: '/app/schedules', label: 'Schedules', icon: CalendarClockIcon },
@@ -32,6 +38,15 @@ const nav = [
 { to: '/app/audit', label: 'Audit trail', icon: ScrollTextIcon },
 // Every account has settings of its own (search providers); admins also see the platform's there.
 { to: '/app/settings', label: 'Settings', icon: SettingsIcon }];
+
+/** The admin area: platform tools, admins only (AdminGate). */
+const ADMIN_NAV: NavItem[] = [
+{ to: '/admin/simulator', label: 'Simulator', icon: FlaskConicalIcon }];
+
+/** Admin or super admin, from the signed-in user's roles. */
+export function isAdmin(user: SessionUser | null): boolean {
+  return !!user && [user.role, ...(user.roles || [])].some((r) => r === 'admin' || r === 'super_admin');
+}
 
 
 /** How often the sidebar re-reads counts and health. */
@@ -63,10 +78,17 @@ const crumbs: Record<string, string> = {
   '/app/audit': 'Audit trail',
   '/app/tasks/new': 'Tasks / New task',
   '/app/devices': 'Computers',
-  '/app/settings': 'Settings'
+  '/app/settings': 'Settings',
+  '/admin/simulator': 'Admin / Simulator'
 };
 
-export function AppShell({ children }: {children: React.ReactNode;}) {
+/**
+ * One shell for both areas — the console (`/app`) and the admin area
+ * (`/admin`) — with the area's own nav. Admins get an "Admin" link at the foot
+ * of the console's nav, and a way back from the admin area.
+ */
+export function AppShell({ children, area = 'app' }: {children: React.ReactNode;area?: 'app' | 'admin';}) {
+  const nav = area === 'admin' ? ADMIN_NAV : APP_NAV;
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -88,7 +110,8 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
   const [computers, setComputers] = useState<{connected: number;total: number;} | null>(null);
 
   useEffect(() => {
-    if (!user) return undefined;
+    // The console's counts; the admin area has none of its own.
+    if (!user || area === 'admin') return undefined;
     let live = true;
     const load = async () => {
       const [ok, approvals, devices] = await Promise.all([
@@ -107,7 +130,7 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
       live = false;
       clearInterval(timer);
     };
-  }, [user, pathname]);
+  }, [user, pathname, area]);
 
   const signOut = () => {
     auth.signOut();
@@ -122,7 +145,7 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
   const isActive = (item: {to: string;end?: boolean;}) =>
   item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
   const crumb =
-  crumbs[pathname] ?? (pathname.startsWith('/app/tasks/') ? 'Tasks / Detail' : 'Overview');
+  crumbs[pathname] ?? (pathname.startsWith('/app/tasks/') ? 'Tasks / Detail' : area === 'admin' ? 'Admin' : 'Overview');
 
   return (
     <div className="flex min-h-full w-full bg-canvas font-sans">
@@ -136,6 +159,12 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
           </span>
         </Link>
 
+        {area === 'admin' ?
+        <div className="px-3 pb-3">
+            <p className="flex items-center gap-1.5 rounded-md bg-shell-raised px-3 py-2 text-[12px] font-medium text-white">
+              <LockKeyholeIcon className="h-3.5 w-3.5" strokeWidth={2.2} /> Admin
+            </p>
+          </div> :
         <div className="px-3 pb-3">
           <Link href="/app/tasks/new"
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white transition-colors duration-150 ease-out hover:bg-brand-500">
@@ -144,6 +173,7 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
             New task
           </Link>
         </div>
+        }
 
         <nav className="flex-1 px-3" aria-label="Main">
           <ul className="space-y-0.5">
@@ -172,6 +202,18 @@ export function AppShell({ children }: {children: React.ReactNode;}) {
               </li>
             )}
           </ul>
+          {area === 'app' && isAdmin(user) &&
+          <Link href="/admin/simulator"
+          className="mt-4 flex items-center gap-2.5 rounded-md border border-shell-line px-2.5 py-2 text-[13px] text-shell-text transition-colors duration-150 ease-out hover:bg-shell-raised hover:text-white">
+              <LockKeyholeIcon className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Admin
+            </Link>
+          }
+          {area === 'admin' &&
+          <Link href="/app"
+          className="mt-4 flex items-center gap-2.5 rounded-md border border-shell-line px-2.5 py-2 text-[13px] text-shell-text transition-colors duration-150 ease-out hover:bg-shell-raised hover:text-white">
+              <ArrowLeftIcon className="h-4 w-4 shrink-0" strokeWidth={1.9} /> Back to console
+            </Link>
+          }
         </nav>
 
         <div className="border-t border-shell-line px-5 py-4">

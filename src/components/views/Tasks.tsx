@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { firstLine } from '@/components/MarkdownText';
 import Link from 'next/link';
 import { PlusIcon, SearchIcon, RefreshCwIcon } from 'lucide-react';
 import { TaskStatusBadge } from '@/components/StatusBadge';
@@ -154,7 +155,7 @@ export function Tasks() {
                     <td className="max-w-[460px] px-5 py-3.5">
                       <Link href={`/app/tasks/${task.id}`} className="block">
                         <p className="truncate text-[13px] font-semibold tracking-tight text-ink-900 group-hover:text-brand-700">
-                          {task.objective}
+                          {firstLine(task.objective)}
                         </p>
                         <p className="mt-1 font-mono text-[10px] text-ink-400">{task.id}</p>
                       </Link>
@@ -191,7 +192,7 @@ export function Tasks() {
                             'brand' :
                             'neutral'
                             }
-                            label={`${task.objective} progress`} />
+                            label={`${firstLine(task.objective)} progress`} />
                           
                           </div>
                         </>

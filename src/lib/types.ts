@@ -91,11 +91,18 @@ export interface CostRollup {
     decideMs: number; dispatchMs: number; verifyMs: number; stepMs: number; wallClockMs: number;
   };
   decideShare: number | null;
+  /** Every model call the task made, by feature — planning and extraction alike. */
+  aiByFeature?: { feature: string | null; calls: number; tokens_in: number; tokens_out: number; cost_usd: number }[];
+  counters?: { modelCalls: number; webRequests: number; externalActions: number };
 }
 
 export interface TaskBudget {
-  caps: { usd: number; tokens: number; wallClockMs: number; steps: number };
-  used: { usd: number; tokensIn: number; tokensOut: number; calls: number; estimated?: boolean };
+  caps: { usd: number; tokens: number; wallClockMs: number; steps: number; modelCalls?: number; webRequests?: number; externalActions?: number };
+  used: {
+    usd: number; tokensIn: number; tokensOut: number; calls: number; estimated?: boolean;
+    /** Phase 0 counters: pages and searches fetched, and actions taken outside. */
+    webRequests?: number; externalActions?: number;
+  };
 }
 
 /**
@@ -162,6 +169,18 @@ export interface Task {
   /** The schedule its reviewed plan becomes, once approved. */
   pending_schedule?: { name: string | null; times: string[]; days: number[]; timezone: string } | null;
   schedule_id?: string | null;
+  /** Files attached when it was created (migration 056). */
+  attachments?: TaskAttachment[];
+  /** Paused by the runtime to wait for the AI service, until then (migration 057). */
+  resume_at?: string | null;
+  pause_reason?: string | null;
+  ai_waits?: number;
+  /** Times a restart cut this task off mid-run. */
+  interruptions?: number;
+  /** Set when the admin Simulator created it. */
+  sim_run_id?: string | null;
+  /** Content it read tried to give orders: it asks before acting outside. */
+  flags?: { injection?: { at: string; sources: { source_id: string; locator: string; kind: string; signals: { signal: string; excerpt: string }[] }[] } };
   /** What a finished task came to, in words (detail only; null until done). */
   outcome?: { summary: string | null; steps_run: number | null; steps_failed: number; steps_skipped: number } | null;
   /** 1 for an original; 2+ for a retry. */
@@ -534,6 +553,16 @@ export const checked = <T extends object>(v: T | { error: string } | undefined):
   v && !('error' in v) ? v as T : null;
 
 /** A saved API a task can send its result to (secret values are never returned). */
+/** An account API key, as listed — the secret itself is shown once, at creation. */
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  status: 'active' | 'revoked';
+  last_used_at?: string | null;
+  created_at: string;
+}
+
 export interface Endpoint {
   id: string;
   name: string;
@@ -546,6 +575,8 @@ export interface Endpoint {
   body_template: unknown | null;
   approval: 'ask' | 'auto';
   timeout_ms: number;
+  /** It treats a repeated Idempotency-Key as the same request, so an unknown send can be asked again safely. */
+  honours_idempotency_key?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -560,6 +591,8 @@ export interface EndpointInput {
   secret_headers?: Record<string, string>;
   body_template?: unknown | string | null;
   approval?: 'ask' | 'auto';
+  timeout_ms?: number;
+  honours_idempotency_key?: boolean;
 }
 
 /** One send to an endpoint, and what came back. */
@@ -570,8 +603,12 @@ export interface Delivery {
   endpoint_id: string | null;
   endpoint_name: string | null;
   trigger: 'completion' | 'step' | 'resend' | 'test';
-  status: 'pending' | 'waiting_approval' | 'sending' | 'sent' | 'failed' | 'denied' | 'expired';
+  status: 'pending' | 'waiting_approval' | 'sending' | 'sent' | 'failed' | 'denied' | 'expired' | 'unknown' | 'checking';
   approval_id: string | null;
+  /** What decided the outcome: the endpoint's answer, a safe repeat, or you. */
+  settled_by?: 'response' | 'repeat' | 'person' | null;
+  /** The Idempotency-Key header the last send carried. */
+  idempotency_key?: string | null;
   request: { method?: string; url?: string; headers?: string[]; body?: string; body_bytes?: number };
   response: { status?: number; content_type?: string | null; json?: unknown; body?: string; location?: string } | null;
   error: string | null;
@@ -598,7 +635,10 @@ export interface InputRequest {
   max_items: number;
   min_items?: number;
   /** How to do it: numbered steps, where to go, and a sample row. */
-  guide?: { steps: string[]; where: string[]; examples: Record<string, string>[] } | null;
+  guide?: { steps: string[]; where: string[]; examples: Record<string, string>[]; sample?: string } | null;
+  /** `confirm`: "did it happen?" — a send whose outcome was unknown, or a step a restart cut off. */
+  kind?: 'collect' | 'confirm';
+  subject?: { type: 'delivery'; delivery_id: string } | { type: 'step'; step_id: string } | null;
   status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
   answer: { records: Record<string, unknown>[]; text: string | null; files: { name: string; file: string; chars: number; rows?: number }[]; notes: string | null } | null;
   created_at: string;
@@ -638,4 +678,42 @@ export interface PersonSites {
   sites: string[];
   custom: boolean;
   defaults: string[];
+}
+
+export interface TaskAttachment {
+  name: string;
+  path: string;
+  text_path: string | null;
+  mime: string;
+  bytes: number;
+  chars: number | null;
+  columns?: string[];
+  preview: string | null;
+  /** The source version recorded for it (migration 060). */
+  source?: SourceRef;
+  /** Marked sensitive: kept for this task only; sending anything outside asks first. */
+  sensitive?: boolean;
+  /** No text could be read from it (a broken file), and why. */
+  unreadable?: string;
+}
+
+/** A registered source version: what a value's provenance points at. */
+export interface SourceRef {
+  source_id: string;
+  version_id: string;
+  version: number;
+  hash: string;
+}
+
+/** Something a task worked from, with every version it saw (migration 060). */
+export interface TaskSource {
+  id: string;
+  kind: 'web' | 'http' | 'attachment' | 'upload' | 'person';
+  locator: string;
+  title: string | null;
+  classification: 'public' | 'user_file' | 'sensitive';
+  created_at: string;
+  /** Text in it that reads like orders to an AI (migration 061). */
+  signals?: { signal: string; excerpt: string }[] | null;
+  versions: { id: string; version: number; hash: string; bytes: number; retrieved_at: string; step_id: string | null; kept: boolean }[];
 }

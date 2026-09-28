@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, TerminalIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, TerminalIcon, PaperclipIcon, FileTextIcon, XIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
 import { tasksApi, ApiError, endpointsApi, schedulesApi } from '@/lib/api';
 import type { Endpoint, ScheduleMode } from '@/lib/types';
 import { ScheduleFields } from '@/components/ScheduleFields';
+import { RichTextEditor } from '@/components/RichTextEditor';
+import { bytes } from '@/utils/format';
 
 /**
  * New task (P1-15).
@@ -35,6 +37,10 @@ const capabilities = [
 { name: 'python.run', icon: TerminalIcon, detail: 'Run a script in a sandbox. No network, nothing persists.' }];
 
 
+const MAX_ATTACH_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACH_FILES = 10;
+const ATTACH_ACCEPT = '.txt,.md,.csv,.json,.html,.htm,.pdf,.png,.jpg,.jpeg,.webp,.xlsx,.docx';
+
 export function NewTask() {
   const router = useRouter();
   const [objective, setObjective] = useState('');
@@ -50,6 +56,38 @@ export function NewTask() {
   const [timezone, setTimezone] = useState('UTC');
   const [mode, setMode] = useState<ScheduleMode>('review_each');
   const [runOnceNow, setRunOnceNow] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  // Files marked sensitive.
+  const [sensitive, setSensitive] = useState<Set<File>>(new Set());
+  const [dragging, setDragging] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+
+  function addFiles(list: FileList | null) {
+    if (!list) return;
+    const incoming = Array.from(list).filter((f) => f.size <= MAX_ATTACH_BYTES);
+    if (incoming.length < list.length) setError('Files over 10 MB were left out.');
+    setFiles((prev) => [...prev, ...incoming].slice(0, MAX_ATTACH_FILES));
+  }
+
+  /**
+   * Create the task, attach its files, then start it — files first, so the
+   * plan is made with them. A file that will not attach cancels the draft
+   * rather than leaving a task that runs without it.
+   */
+  async function createAndStart(options: Parameters<typeof tasksApi.create>[1]) {
+    const task = await tasksApi.create(objective.trim(), { ...options, ...(files.length ? { start: false } : {}) });
+    if (!files.length) return task;
+    for (const f of files) {
+      try {
+        await tasksApi.addAttachment(task.id, f, { sensitive: sensitive.has(f) });
+      } catch (err) {
+        await tasksApi.control(task.id, 'cancel').catch(() => {});
+        throw new ApiError(`Could not attach ${f.name}: ${err instanceof ApiError ? err.message : 'upload failed'}. Nothing was started.`, 422);
+      }
+    }
+    await tasksApi.start(task.id);
+    return task;
+  }
 
   useEffect(() => {
     try { setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'); } catch { /* UTC */ }
@@ -73,14 +111,14 @@ export function NewTask() {
           router.push('/app/schedules');
           return;
         }
-        const first = await tasksApi.create(objective.trim(), {
+        const first = await createAndStart({
           ...(deliverTo ? { deliver_to: deliverTo } : {}), review_plan: mode === 'review_each' || reviewPlan,
         });
         router.push(`/app/tasks/${first.id}`);
         return;
       }
 
-      const task = await tasksApi.create(objective.trim(), {
+      const task = await createAndStart({
         ...(deliverTo ? { deliver_to: deliverTo } : {}),
         ...(reviewPlan ? { review_plan: true } : {}),
         // Plan now, you review it, and every run reuses that plan.
@@ -109,19 +147,50 @@ export function NewTask() {
 
       <form onSubmit={submit} className="mt-5">
         <div className="rounded-xl border border-line bg-panel p-4 shadow-panel">
-          <label htmlFor="objective" className="sr-only">
-            Objective
-          </label>
-          <textarea
-            id="objective"
+          <RichTextEditor
             value={objective}
-            onChange={(e) => setObjective(e.target.value)}
-            rows={4}
-            maxLength={4000}
+            onChange={setObjective}
+            ariaLabel="Objective"
             autoFocus
-            placeholder="e.g. Fetch the Node.js repo from the GitHub API and report its star count."
-            className="w-full resize-y bg-transparent text-[14px] leading-relaxed text-ink-900 placeholder:text-ink-400 focus:outline-none" />
-          
+            placeholder="e.g. Price each item in the attached list at Lagos filling stations, and send me a CSV." />
+
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+            className={`mt-3 rounded-lg border border-dashed px-3 py-2.5 text-[12px] transition-colors ${dragging ? 'border-brand-500 bg-brand-50' : 'border-line'}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => picker.current?.click()}
+              className="inline-flex cursor-pointer items-center gap-1 font-medium text-brand-700 hover:text-brand-500">
+                <PaperclipIcon className="h-3.5 w-3.5" strokeWidth={2.2} /> Attach files
+              </button>
+              <span className="text-ink-500">or drop them here — a list, a brief, a spreadsheet export (CSV, TXT, MD, JSON, PDF, HTML, XLSX, DOCX, images · up to 10 MB each, 10 files)</span>
+              <input ref={picker} type="file" multiple hidden accept={ATTACH_ACCEPT} onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+            </div>
+            {files.length > 0 &&
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+                {files.map((f, i) =>
+              <li key={`${f.name}-${i}`} className="inline-flex items-center gap-1.5 rounded-md border border-line bg-canvas px-2 py-1 text-[12px] text-ink-900">
+                    <FileTextIcon className="h-3.5 w-3.5 text-ink-500" strokeWidth={2} />
+                    <span className="max-w-[220px] truncate">{f.name}</span>
+                    <span className="text-ink-400">{bytes(f.size)}</span>
+                    <label className="inline-flex cursor-pointer items-center gap-1 text-[11px] text-ink-500" title="Kept for this task only, and the task asks you before it sends anything outside">
+                      <input type="checkbox" checked={sensitive.has(f)} className="cursor-pointer"
+                    onChange={(e) => setSensitive((prev) => { const next = new Set(prev); if (e.target.checked) next.add(f); else next.delete(f); return next; })} />
+                      Sensitive
+                    </label>
+                    <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} aria-label={`Remove ${f.name}`}
+                  className="cursor-pointer rounded p-0.5 text-ink-400 hover:text-ink-900">
+                      <XIcon className="h-3 w-3" strokeWidth={2.4} />
+                    </button>
+                  </li>
+              )}
+              </ul>
+            }
+            {files.length > 0 && repeat &&
+            <p className="mt-2 text-warn-700">Attached files are used by {mode === 'reuse_plan' || runOnceNow ? 'this first task' : 'no run'}; scheduled runs don’t get them yet.</p>
+            }
+          </div>
 
           <div className="mt-3 space-y-3 border-t border-line pt-3 text-[12px]">
             <label className="flex cursor-pointer items-start gap-2 text-ink-700">

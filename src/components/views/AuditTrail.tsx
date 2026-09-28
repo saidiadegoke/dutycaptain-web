@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { firstLine } from '@/components/MarkdownText';
 import Link from 'next/link';
 import { SearchIcon, ShieldCheckIcon, TriangleAlertIcon, UserCheckIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
@@ -156,7 +157,7 @@ export function AuditTrail() {
                           {timeAgo(t.created_at)}
                         </span>
                       </div>
-                      <p className="mt-1.5 truncate text-[13px] text-ink-900">{t.objective}</p>
+                      <p className="mt-1.5 truncate text-[13px] text-ink-900">{firstLine(t.objective)}</p>
                       <p className="mt-0.5 text-[11px] text-ink-400">
                         {t.steps.done} of {t.steps.total} steps
                         {t.steps.failed > 0 ? ` · ${t.steps.failed} failed` : ''}

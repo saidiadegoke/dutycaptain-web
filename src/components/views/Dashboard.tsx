@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { firstLine } from '@/components/MarkdownText';
 import Link from 'next/link';
 import { ArrowRightIcon, ChevronRightIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
@@ -109,7 +110,7 @@ export function Dashboard() {
                       <span className="font-mono text-[11px] text-ink-400">{active.id}</span>
                     </div>
                     <h2 className="mt-2 max-w-2xl text-[17px] font-semibold leading-snug tracking-tight text-ink-900">
-                      “{active.objective}”
+                      “{firstLine(active.objective)}”
                     </h2>
                   </div>
                   <Link href={`/app/tasks/${active.id}`}
@@ -177,7 +178,7 @@ export function Dashboard() {
               <li key={t.id}>
                     <Link href={`/app/tasks/${t.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors duration-150 ease-out hover:bg-canvas">
                       <TaskStatusBadge status={t.status} />
-                      <p className="min-w-0 flex-1 truncate text-[13px] text-ink-900">{t.objective}</p>
+                      <p className="min-w-0 flex-1 truncate text-[13px] text-ink-900">{firstLine(t.objective)}</p>
                       <span className="hidden shrink-0 text-[11px] text-ink-500 sm:block">
                         {t.steps?.total ? `${t.steps.done}/${t.steps.total} steps · ` : ''}{ago(t.created_at)}
                       </span>

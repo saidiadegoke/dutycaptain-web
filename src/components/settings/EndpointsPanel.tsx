@@ -32,6 +32,7 @@ function EndpointForm({ endpoint, onSaved, onCancel }: {endpoint: Endpoint | nul
   const [url, setUrl] = useState(endpoint?.url || '');
   const [rows, setRows] = useState<HeaderRow[]>(rowsOf(endpoint));
   const [approval, setApproval] = useState<'ask' | 'auto'>(endpoint?.approval || 'ask');
+  const [honoursKey, setHonoursKey] = useState(Boolean(endpoint?.honours_idempotency_key));
   const [template, setTemplate] = useState(endpoint?.body_template ? JSON.stringify(endpoint.body_template, null, 2) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ function EndpointForm({ endpoint, onSaved, onCancel }: {endpoint: Endpoint | nul
       method,
       url: url.trim(),
       approval,
+      honours_idempotency_key: honoursKey,
       headers: Object.fromEntries(used.filter((r) => !r.secret).map((r) => [r.name.trim(), r.value])),
       // An empty value on a kept secret means "leave it as it is".
       secret_headers: Object.fromEntries(used.filter((r) => r.secret).map((r) => [r.name.trim(), r.value])),
@@ -132,6 +134,17 @@ function EndpointForm({ endpoint, onSaved, onCancel }: {endpoint: Endpoint | nul
           )}
         </div>
       </fieldset>
+
+      <label className="flex cursor-pointer items-start gap-2.5">
+        <input type="checkbox" checked={honoursKey} onChange={(e) => setHonoursKey(e.target.checked)} className="mt-1 cursor-pointer" />
+        <span>
+          <span className="block text-[13px] text-ink-900">It ignores repeats of the same Idempotency-Key</span>
+          <span className="block text-[12px] text-ink-500">
+            Every send carries an <code className="font-mono">Idempotency-Key</code> header. If a send times out, DutyCaptain can&rsquo;t tell whether it arrived.
+            Tick this only if this API treats a repeated key as the same request: DutyCaptain will then ask it again to find out. Otherwise it asks you instead of risking a second send.
+          </span>
+        </span>
+      </label>
 
       <label className="block">
         <span className="text-[12px] font-medium text-ink-700">Body (optional)</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { EndpointsPanel } from '@/components/settings/EndpointsPanel';
+import { ApiKeysPanel } from '@/components/settings/ApiKeysPanel';
 import { PersonSitesPanel } from '@/components/settings/PersonSitesPanel';
 import { ArrowDownIcon, ArrowUpIcon } from 'lucide-react';
 import { adminApi, ApiError, configApi, notificationsApi, searchApi, session } from '@/lib/api';
@@ -370,6 +371,7 @@ export function Settings() {
       {data && <AccountSearchPanel data={data} onSaved={setData} />}
       <PersonSitesPanel />
       <EndpointsPanel />
+      <ApiKeysPanel />
       <EmailPanel />
       {admin && data && <PlatformSearchPanel data={data} onSaved={load} />}
       {admin && <EarlyAccessPanel />}
