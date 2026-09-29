@@ -51,6 +51,11 @@ export const ADVERSARIAL: AdversarialVariant[] = [
     coveredBy: ['adversarial.malformed-file', 'skills.broken-workbook'],
   },
   {
+    id: 'unclear-scan', variant: 'Unclear scan', example: 'a receipt photo OCR can barely read',
+    correct: 'read again by a vision model and compared with OCR; a value neither reading confirms is "unclear — confirm", never verified',
+    coveredBy: ['images.poor-photo', 'images.clear-receipt'],
+  },
+  {
     id: 'huge', variant: 'Huge source', example: '10× the expected size',
     correct: 'read in pieces, or stopped at a budget cap with counts; never cut silently',
     coveredBy: ['content.deep-listing', 'budget.web-request-cap', 'budget.model-call-cap'], planned: 'Phase 3 — extraction piece by piece (map, then merge) for sources too big to rank into one read',

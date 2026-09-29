@@ -379,6 +379,8 @@ export function TaskDetail() {
                             {/* Which skill read it (phase 4), or why nothing could. */}
                             {a.read_by && <span className="rounded bg-panel px-1 font-mono text-[10px] text-ink-500" title={a.read_reason || ''}>{a.read_by}</span>}
                             {a.unreadable && <span className="text-[11px] text-warn-700" title={a.unreadable}>unreadable</span>}
+                            {a.read_quality === 'poor' && <span className="text-[11px] text-warn-700" title="OCR read it poorly; a vision model reads it again when the task runs">poor scan</span>}
+                            {!!a.unclear && a.read_quality !== 'poor' && <span className="text-[11px] text-ink-500" title="words the reading was unsure of; values built from them are marked to confirm">{a.unclear} unclear</span>}
                             {a.sensitive && <span className="text-[11px] text-warn-700">sensitive</span>}
                           </button>
                         </li>

@@ -1080,7 +1080,7 @@ export const simApi = {
     return (await request<{ data: Record<string, number> }>(`/sim/runs/${runId}`, { method: 'DELETE' })).data;
   },
   /** A sample file (workbook, Word document, receipt photo) with chosen content, made by the skills image. */
-  async sample(input: { kind: 'xlsx' | 'docx' | 'receipt'; rows?: Record<string, unknown>[]; markdown?: string; text?: string }) {
+  async sample(input: { kind: 'xlsx' | 'docx' | 'receipt'; rows?: Record<string, unknown>[]; markdown?: string; text?: string; degrade?: boolean }) {
     const d = (await request<{ data: { name: string; mime: string; base64: string } }>('/sim/samples', { method: 'POST', body: JSON.stringify(input) })).data;
     const bin = atob(d.base64);
     const bytes = new Uint8Array(bin.length);

@@ -705,6 +705,9 @@ export interface TaskAttachment {
   /** The skill that read it, and why that one (phase 4: chosen by its type). */
   read_by?: string;
   read_reason?: string;
+  /** How well OCR read it (phase 5): `poor` is read again by a vision model in the task. */
+  read_quality?: 'good' | 'poor';
+  unclear?: number;
 }
 
 /** A registered source version: what a value's provenance points at. */
@@ -774,7 +777,7 @@ export interface ValueProvenance {
   record_key: string | null;
   field: string;
   value: unknown;
-  state: 'verified' | 'probable' | 'stale' | 'conflicting' | 'missing';
+  state: 'verified' | 'probable' | 'ambiguous' | 'stale' | 'conflicting' | 'missing';
   source_id: string | null;
   version_id: string | null;
   source_hash: string | null;
