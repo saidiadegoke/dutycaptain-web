@@ -50,7 +50,22 @@ export async function waitForStatus(ctx: RunContext, taskId: string, statuses: T
   return ctx.poll(label || `task to be ${statuses.join(' or ')}`, () => tasksApi.get(taskId), (t) => statuses.includes(t.status) || (FINAL.includes(t.status) && !statuses.includes(t.status)), { timeoutMs });
 }
 
-export const settled = (ctx: RunContext, taskId: string, label?: string) => waitForStatus(ctx, taskId, [...FINAL, ...WAITING], label);
+/**
+ * Wait for the task to finish or wait on something. A task whose contract is
+ * waiting for review (phase 1: it acts outside) is approved on the way — the
+ * click a person would make — unless the scenario is about that review.
+ */
+export async function settled(ctx: RunContext, taskId: string, label?: string, { approveContract = true } = {}): Promise<TaskDetail> {
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const t = await waitForStatus(ctx, taskId, [...FINAL, ...WAITING], label);
+    const contractWaits = t.status === 'waiting_for_review' && !!t.contract?.review?.required && !t.contract_approved_at && t.steps.length === 0;
+    if (!approveContract || !contractWaits) return t;
+    ctx.log(`approving the contract, as you would: ${t.contract?.summary || ''}`);
+    // eslint-disable-next-line no-await-in-loop
+    await tasksApi.approveContract(taskId);
+  }
+}
 
 export async function deliveriesOf(taskId: string): Promise<Delivery[]> {
   return tasksApi.deliveries(taskId);

@@ -20,6 +20,7 @@ const filters: Array<{id: TaskStatus | 'all';label: string;}> = [
 { id: 'waiting_for_approval', label: 'Needs approval' },
 { id: 'paused', label: 'Paused' },
 { id: 'done', label: 'Done' },
+{ id: 'partial', label: 'Partly done' },
 { id: 'failed', label: 'Failed' },
 { id: 'queued', label: 'Queued' }];
 
@@ -188,6 +189,8 @@ export function Tasks() {
                             'warn' :
                             task.status === 'done' ?
                             'ok' :
+                            task.status === 'partial' ?
+                            'warn' :
                             isActive(task.status) ?
                             'brand' :
                             'neutral'

@@ -24,7 +24,7 @@
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
   ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
-  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource,
+  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -479,6 +479,18 @@ export const tasksApi = {
     const body = await request<{ data: { attachment: TaskAttachment; attachments: TaskAttachment[] } }>(
       `/tasks/${id}/attachments`, { method: 'POST', body: form },
     );
+    return body.data;
+  },
+
+  /** Change the output contract while it waits for review (phase 1). */
+  async editContract(id: string, changes: Partial<OutputContract>) {
+    const body = await request<{ data: OutputContract }>(`/tasks/${id}/contract`, { method: 'PUT', body: JSON.stringify(changes) });
+    return body.data;
+  },
+
+  /** Approve what the task will hand back; it goes on to planning. */
+  async approveContract(id: string) {
+    const body = await request<{ data: Task }>(`/tasks/${id}/contract/approve`, { method: 'POST' });
     return body.data;
   },
 

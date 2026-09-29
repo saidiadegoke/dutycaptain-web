@@ -22,12 +22,14 @@ const taskStyles: Record<TaskStatus, { label: string; cls: string; dot: string }
   waiting_for_approval: { label: 'Needs approval', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
   waiting_for_device: { label: 'Waiting for device', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-500' },
   waiting_for_input: { label: 'Needs you', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
-  waiting_for_review: { label: 'Plan ready for review', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
+  waiting_for_review: { label: 'Ready for your review', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
   // Its own badge rather than a shade of "waiting": the question it asks a
   // person is about money, and the answer is a number (P2-07).
   waiting_for_budget: { label: 'Out of budget', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
   paused: { label: 'Paused', cls: 'bg-canvas text-ink-700 border-line-strong', dot: 'bg-ink-500' },
   done: { label: 'Done', cls: 'bg-ok-50 text-ok-700 border-ok-100', dot: 'bg-ok-600' },
+  // Finished with part of what was asked (phase 1): a result, not a failure.
+  partial: { label: 'Partly done', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-ok-600' },
   failed: { label: 'Failed', cls: 'bg-danger-50 text-danger-700 border-danger-100', dot: 'bg-danger-600' },
   cancelled: { label: 'Cancelled', cls: 'bg-canvas text-ink-500 border-line', dot: 'bg-ink-400' }
 };
@@ -52,6 +54,7 @@ const stepStyles: Record<StepStatus, { label: string; cls: string }> = {
   running: { label: 'Running', cls: 'text-brand-700 bg-brand-50 border-brand-200' },
   waiting: { label: 'Waiting', cls: 'text-warn-700 bg-warn-50 border-warn-100' },
   done: { label: 'Done', cls: 'text-ok-700 bg-ok-50 border-ok-100' },
+  partial: { label: 'Partly done', cls: 'text-warn-700 bg-warn-50 border-warn-100' },
   failed: { label: 'Failed', cls: 'text-danger-700 bg-danger-50 border-danger-100' },
   skipped: { label: 'Skipped', cls: 'text-ink-500 bg-canvas border-line' },
   cancelled: { label: 'Cancelled', cls: 'text-ink-500 bg-canvas border-line' }

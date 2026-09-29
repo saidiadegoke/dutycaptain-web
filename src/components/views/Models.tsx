@@ -90,7 +90,7 @@ function Row({ state, title, detail }: { state: string; title: string; detail: s
 }
 
 const STATUS_ORDER: TaskStatus[] = [
-  'done', 'queued', 'planning', 'running', 'waiting_for_review', 'waiting_for_approval', 'waiting_for_input',
+  'done', 'partial', 'queued', 'planning', 'running', 'waiting_for_review', 'waiting_for_approval', 'waiting_for_input',
   'waiting_for_device', 'waiting_for_budget', 'paused', 'failed', 'cancelled',
 ];
 

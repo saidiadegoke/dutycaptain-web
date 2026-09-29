@@ -24,6 +24,7 @@ export type TaskStatus =
   | 'waiting_for_input'
   | 'paused'
   | 'done'
+  | 'partial'
   | 'failed'
   | 'cancelled';
 
@@ -35,7 +36,8 @@ export type StepStatus =
   | 'done'
   | 'failed'
   | 'skipped'
-  | 'cancelled';
+  | 'cancelled'
+  | 'partial';
 
 /** §6's typed Observation. Every actuator returns one; none returns a string. */
 export interface Observation {
@@ -179,6 +181,11 @@ export interface Task {
   interruptions?: number;
   /** Set when the admin Simulator created it. */
   sim_run_id?: string | null;
+  /** What it must hand back, agreed before planning (phase 1). */
+  contract?: OutputContract | null;
+  contract_approved_at?: string | null;
+  /** What code measured against the contract — the status comes from this. */
+  measured?: MeasuredOutcome | null;
   /** Content it read tried to give orders: it asks before acting outside. */
   flags?: { injection?: { at: string; sources: { source_id: string; locator: string; kind: string; signals: { signal: string; excerpt: string }[] }[] } };
   /** What a finished task came to, in words (detail only; null until done). */
@@ -716,4 +723,37 @@ export interface TaskSource {
   /** Text in it that reads like orders to an AI (migration 061). */
   signals?: { signal: string; excerpt: string }[] | null;
   versions: { id: string; version: number; hash: string; bytes: number; retrieved_at: string; step_id: string | null; kept: boolean }[];
+}
+
+/** The output contract (phase 1): what a task must hand back. */
+export interface OutputContract {
+  summary: string;
+  shape: 'value' | 'records' | 'table' | 'prose' | 'file' | 'action';
+  fields: { name: string; type: 'string' | 'number' | 'date' | 'boolean' | 'url'; required: boolean; description?: string }[];
+  completeness: { rule: 'exactly_one' | 'all' | 'up_to' | 'best_effort' | 'coverage'; n?: number; items?: string[] };
+  exactness: 'exact' | 'approximate';
+  sources?: { authoritative: string[]; note?: string };
+  freshness?: { max_age_days?: number; note?: string };
+  actions: { kind: string; target: string; description?: string }[];
+  destination?: string;
+  checks?: { check: string; said?: string; was?: string; now?: string; corrected: boolean }[];
+  review?: { required: boolean; reasons: string[] };
+}
+
+/** What code counted against the contract (phase 1's completeness invariant). */
+export interface MeasuredOutcome {
+  status: 'done' | 'partial' | 'failed';
+  rule: string;
+  expected: number | null;
+  found: number;
+  covered?: number;
+  missing: string[];
+  dropped: number;
+  reason: string | null;
+  attempted: number;
+  succeeded: number;
+  partial: number;
+  failed: number;
+  not_attempted: number;
+  model_verdict?: 'finished' | 'failed';
 }

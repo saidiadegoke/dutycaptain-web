@@ -15,8 +15,8 @@ const GROUP = 'Phase 0 · Budgets';
 export const modelCallCap: Scenario = {
   id: 'budget.model-call-cap',
   group: GROUP,
-  title: 'A cap on AI calls stops the task after planning',
-  summary: 'A task allowed one AI call plans (that is the call), then waits for you instead of making another.',
+  title: 'A cap on AI calls stops the task after its first call',
+  summary: 'A task allowed one AI call makes it (drafting what it must hand back), then waits for you instead of making another.',
   exercises: 'budget.check (modelCalls) → waiting_for_budget',
   cost: ['ai'],
   estimate: '~10s',

@@ -219,6 +219,41 @@ export function TaskOutcome({ task, onRetry, deliveries = [], deliveryTo = null,
     </div>;
 
 
+  // What code counted against the contract (phase 1) — shown with the result,
+  // because the status came from it.
+  const m = task.measured;
+  const counted = m ?
+  <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">
+      <p>
+        <span className="font-semibold text-ink-900">{m.found}{m.expected ? ` of ${m.expected}` : ''}</span> found
+        {m.dropped ? ` · ${m.dropped} dropped for a missing required value` : ''}
+        {` · ${m.succeeded} step${m.succeeded === 1 ? '' : 's'} done`}{m.partial ? `, ${m.partial} partly` : ''}{m.failed ? `, ${m.failed} failed` : ''}{m.not_attempted ? `, ${m.not_attempted} not run` : ''}
+      </p>
+      {m.missing.length > 0 && <p className="mt-0.5">Not found: {m.missing.join(', ')}</p>}
+      {m.reason && m.status !== 'done' && <p className="mt-0.5 text-ink-500">{m.reason}</p>}
+    </div> :
+  null;
+
+  if (task.status === 'partial') {
+    return (
+      <section className="rounded-xl border border-warn-100 bg-panel p-5 shadow-panel">
+        <div className="flex items-start gap-3">
+          <AlertTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-warn-600" strokeWidth={2} />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] font-semibold text-ink-900">Partly done</h2>
+            <p className="mt-1 whitespace-pre-line text-[14px] leading-relaxed text-ink-800">
+              {task.outcome?.summary || 'It found some of what was asked. What it found is kept below.'}
+            </p>
+            {counted}
+            <Files task={task} />
+            {sent}
+            {retryButtons}
+          </div>
+        </div>
+      </section>);
+
+  }
+
   if (task.status === 'done') {
     return (
       <section className="rounded-xl border border-ok-100 bg-panel p-5 shadow-panel">
@@ -229,6 +264,7 @@ export function TaskOutcome({ task, onRetry, deliveries = [], deliveryTo = null,
             <p className="mt-1 whitespace-pre-line text-[14px] leading-relaxed text-ink-800">
               {task.outcome?.summary || 'Finished. No summary was recorded for this task.'}
             </p>
+            {counted}
             <Files task={task} />
             {sent}
           </div>
@@ -255,6 +291,7 @@ export function TaskOutcome({ task, onRetry, deliveries = [], deliveryTo = null,
             <p className="mt-1 text-[14px] leading-relaxed text-ink-800">
               {task.error?.message || (cancelled ? 'It was stopped before it finished.' : 'It stopped without saying why.')}
             </p>
+            {!cancelled && counted}
             <Files task={task} />
             {sent}
             {retryButtons}

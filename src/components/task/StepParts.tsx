@@ -36,6 +36,8 @@ export function StepIcon({ step, className = 'h-4 w-4' }: {step: Step;className?
       return failedCheck ?
       <XCircleIcon className={`${className} shrink-0 text-danger-600`} strokeWidth={2.2} aria-label="did not verify" /> :
       <CheckCircle2Icon className={`${className} shrink-0 text-ok-600`} strokeWidth={2.2} aria-label="done" />;
+    case 'partial':
+      return <CheckCircle2Icon className={`${className} shrink-0 text-warn-600`} strokeWidth={2.2} aria-label="partly done" />;
     case 'failed':
       return <XCircleIcon className={`${className} shrink-0 text-danger-600`} strokeWidth={2.2} aria-label="failed" />;
     case 'running':

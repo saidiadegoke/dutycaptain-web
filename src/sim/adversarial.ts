@@ -57,16 +57,16 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   },
   {
     id: 'missing', variant: 'Missing data', example: '2 of 60 invoices unreadable',
-    correct: 'partial, the 2 named, a gap request to a person',
-    coveredBy: [], planned: 'Phase 1 — partial results and counts; gap requests right after',
+    correct: 'partial, the missing ones named, a gap request to a person',
+    coveredBy: ['outcome.partial-delivered'], planned: 'Gap requests to a person — right after phase 1',
   },
   {
     id: 'partial', variant: 'Partial failure', example: '17 of 20 sources succeed',
-    correct: 'partial with 17/20 and the 3 reasons', coveredBy: [], planned: 'Phase 1 — partial results and counts',
+    correct: 'partial with the counts and the reasons', coveredBy: ['outcome.partial-delivered', 'outcome.optional-field-empty'],
   },
   {
     id: 'stale', variant: 'Stale source', example: "yesterday's figure when today's is required",
-    correct: 'rejected by the freshness rule, not delivered', coveredBy: [], planned: 'Phase 1 — the output contract (freshness)',
+    correct: 'rejected by the freshness rule, not delivered', coveredBy: ['outcome.stale-rejected'],
   },
   {
     id: 'conflicting', variant: 'Conflicting data', example: 'two prices for one product',

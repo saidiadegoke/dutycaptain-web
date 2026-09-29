@@ -36,6 +36,7 @@ import { CostPanel } from '@/components/CostPanel';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { TaskOutcome } from '@/components/task/TaskOutcome';
 import { PlanReview } from '@/components/task/PlanReview';
+import { ContractCard } from '@/components/task/ContractCard';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
 import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
@@ -170,7 +171,7 @@ export function TaskDetail() {
 
   }
 
-  const done = task.steps.filter((s) => s.status === 'done').length;
+  const done = task.steps.filter((s) => s.status === 'done' || s.status === 'partial').length;
   const concurrent = widestOverlap(task.steps);
   const canPause = isActive(task.status);
   // Neither an approval nor a budget is resumed past: one is decided, the other
@@ -342,7 +343,10 @@ export function TaskDetail() {
               }} />
             )}
 
-              {task.status === 'waiting_for_review' && <PlanReview task={task} onChanged={() => load(true)} />}
+              {/* What it must hand back (phase 1): a review card while the owner is asked, collapsed after. */}
+              {task.contract && <ContractCard task={task} onChanged={() => load(true)} />}
+
+              {task.status === 'waiting_for_review' && task.steps.length > 0 && <PlanReview task={task} onChanged={() => load(true)} />}
 
               {inputs.map((r) => {
               const done = () => {
