@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, TerminalIcon, PaperclipIcon, FileTextIcon, XIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
-import { tasksApi, ApiError, endpointsApi, schedulesApi } from '@/lib/api';
-import type { Endpoint, ScheduleMode } from '@/lib/types';
+import { tasksApi, ApiError, endpointsApi, peopleApi, schedulesApi } from '@/lib/api';
+import type { Endpoint, GapRoute, Person, Pool, ScheduleMode } from '@/lib/types';
 import { ScheduleFields } from '@/components/ScheduleFields';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { bytes } from '@/utils/format';
@@ -56,6 +56,10 @@ export function NewTask() {
   const [timezone, setTimezone] = useState('UTC');
   const [mode, setMode] = useState<ScheduleMode>('review_each');
   const [runOnceNow, setRunOnceNow] = useState(false);
+  // Where what it could not get goes (phase 6): '' | 'owner' | 'person:<id>' | 'pool:<id>'.
+  const [gapTo, setGapTo] = useState('');
+  const [people, setPeople] = useState<Person[]>([]);
+  const [pools, setPools] = useState<Pool[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   // Files marked sensitive.
   const [sensitive, setSensitive] = useState<Set<File>>(new Set());
@@ -94,6 +98,11 @@ export function NewTask() {
   }, []);
 
   useEffect(() => { endpointsApi.list().then(setEndpoints).catch(() => setEndpoints([])); }, []);
+  useEffect(() => { peopleApi.list().then((d) => { setPeople(d.people); setPools(d.pools); }).catch(() => {}); }, []);
+
+  const gaps: GapRoute | undefined = gapTo === 'owner' ? { to: 'owner' }
+    : gapTo.startsWith('person:') ? { to: 'people', people: [gapTo.slice(7)] }
+      : gapTo.startsWith('pool:') ? { to: 'pool', pool: gapTo.slice(5) } : undefined;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,7 +121,7 @@ export function NewTask() {
           return;
         }
         const first = await createAndStart({
-          ...(deliverTo ? { deliver_to: deliverTo } : {}), review_plan: mode === 'review_each' || reviewPlan,
+          ...(deliverTo ? { deliver_to: deliverTo } : {}), review_plan: mode === 'review_each' || reviewPlan, ...(gaps ? { gaps } : {}),
         });
         router.push(`/app/tasks/${first.id}`);
         return;
@@ -121,6 +130,7 @@ export function NewTask() {
       const task = await createAndStart({
         ...(deliverTo ? { deliver_to: deliverTo } : {}),
         ...(reviewPlan ? { review_plan: true } : {}),
+        ...(gaps ? { gaps } : {}),
         // Plan now, you review it, and every run reuses that plan.
         ...(repeat && mode === 'reuse_plan' ? { schedule: when } : {})
       });
@@ -235,6 +245,20 @@ export function NewTask() {
             <Link href="/app/settings" className="text-brand-700 hover:text-brand-500">
               {endpoints.length ? 'Manage endpoints' : 'Add an API endpoint'}
             </Link>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-[12px]">
+            <label className="inline-flex items-center gap-2 text-ink-700">
+              If something can’t be found or read clearly,
+              <select value={gapTo} onChange={(e) => setGapTo(e.target.value)} aria-label="Where gaps go"
+                className="cursor-pointer rounded-md border border-line bg-panel px-2 py-1 text-[12px] text-ink-900">
+                <option value="">deliver it marked partial</option>
+                <option value="owner">ask me to fill it in</option>
+                {people.map((p) => <option key={p.id} value={`person:${p.id}`}>ask {p.name}</option>)}
+                {pools.map((p) => <option key={p.id} value={`pool:${p.id}`}>ask the {p.name} pool</option>)}
+              </select>
+            </label>
+            <span className="text-ink-500">Only the missing or unclear values are asked for; the rest of the task keeps going.</span>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">

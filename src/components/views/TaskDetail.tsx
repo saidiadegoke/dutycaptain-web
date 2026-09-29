@@ -99,6 +99,14 @@ export function TaskDetail() {
     endpointsApi.list().then((all) => setEndpointNames(Object.fromEntries(all.map((e) => [e.id, e.name])))).catch(() => {});
   }, []);
 
+  const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
+  const lastSeq = events.length ? events[events.length - 1].seq : 0;
+  const seenSeq = useRef(0);
+  // Requests change without the task's status changing (phase 6): a step
+  // waits while others run, and answers arrive one by one.
+  const PEOPLE_EVENTS = ['input.required', 'input.provided', 'people.asked', 'answer.received', 'gaps.filled'];
+  const peopleSeq = [...events].reverse().find((e) => PEOPLE_EVENTS.includes(e.type))?.seq || 0;
+
   // Searches waiting for the owner: read whenever the task is paused for one.
   const status = task?.status;
   useEffect(() => {
@@ -115,11 +123,7 @@ export function TaskDetail() {
     tasksApi.searchRequests(taskId).
     then((all) => setSearches(all.filter((r) => r.status === 'pending'))).
     catch(() => setSearches([]));
-  }, [status, taskId]);
-
-  const { events, state: streamState, error: streamError } = useTaskTimeline(taskId);
-  const lastSeq = events.length ? events[events.length - 1].seq : 0;
-  const seenSeq = useRef(0);
+  }, [status, taskId, peopleSeq]);
 
   // Refetch when the log moves. Debounced, because a decision turn writes
   // several events in quick succession (`step.proposed`, `policy.decided`,

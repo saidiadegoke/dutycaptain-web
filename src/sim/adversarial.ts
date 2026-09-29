@@ -63,7 +63,7 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   {
     id: 'missing', variant: 'Missing data', example: '2 of 60 invoices unreadable',
     correct: 'partial, the missing ones named, a gap request to a person',
-    coveredBy: ['outcome.partial-delivered'], planned: 'Gap requests to a person — right after phase 1',
+    coveredBy: ['outcome.partial-delivered', 'gaps.partial-to-owner'],
   },
   {
     id: 'partial', variant: 'Partial failure', example: '17 of 20 sources succeed',

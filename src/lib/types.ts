@@ -642,15 +642,55 @@ export interface InputRequest {
   max_items: number;
   min_items?: number;
   /** How to do it: numbered steps, where to go, and a sample row. */
-  guide?: { steps: string[]; where: string[]; examples: Record<string, string>[]; sample?: string } | null;
+  guide?: { steps: string[]; where: string[]; examples: Record<string, string>[]; sample?: string; prefill?: Record<string, unknown>[] } | null;
   /** `confirm`: "did it happen?" — a send whose outcome was unknown, or a step a restart cut off. */
   kind?: 'collect' | 'confirm';
   subject?: { type: 'delivery'; delivery_id: string } | { type: 'step'; step_id: string } | null;
   status: 'pending' | 'answered' | 'declined' | 'expired' | 'cancelled';
-  answer: { records: Record<string, unknown>[]; text: string | null; files: { name: string; file: string; chars: number; rows?: number }[]; notes: string | null } | null;
+  answer: {
+    records: Record<string, unknown>[]; text: string | null; files: { name: string; file: string; chars: number; rows?: number }[]; notes: string | null;
+    /** Who gave each row (phase 6). */
+    credits?: { record: number; by: string; kind: 'owner' | 'person' | 'pool'; pool?: string }[];
+    closed?: { reason: string; on_deadline: string | null };
+  } | null;
   created_at: string;
   answered_at: string | null;
   expires_at: string;
+  /** Asked of colleagues or a pool (phase 6). */
+  audience?: { people?: { id: string; name: string }[]; pool?: { id: string; name: string }; owner?: boolean } | null;
+  max_answers?: number;
+  on_deadline?: 'continue' | 'owner' | 'fail';
+  /** A request for only what a partial step could not get. */
+  gaps?: { step_id: string; items: number } | null;
+  people?: RequestPeople;
+}
+
+/** Who a request was sent to, what became of each, and the answers so far (phase 6). */
+export interface RequestPeople {
+  asked: { id: string; to: { kind: 'person' | 'pool'; name: string; email?: string }; status: string; sent: string | null; error: string | null; opened_at: string | null; answered_at: string | null }[];
+  answers: { id: string; by: { kind: 'owner' | 'person' | 'pool'; name: string; pool?: string }; records: number; declined: boolean; notes: string | null; at: string }[];
+}
+
+export interface Person { id: string; name: string; email: string; note: string | null; created_at: string }
+export interface Pool { id: string; name: string; description: string | null; endpoint_id: string | null; endpoint_name: string | null; created_at: string }
+export type GapRoute = { to: 'owner' } | { to: 'people'; people: string[] } | { to: 'pool'; pool: string };
+
+/** What the public answer page shows (GET /answer/:token). */
+export interface AnswerView {
+  request: {
+    instructions: string;
+    guide: InputRequest['guide'];
+    fields: InputRequest['fields'];
+    prefill: Record<string, unknown>[];
+    gaps: boolean;
+    min_items: number;
+    max_items: number;
+    deadline: string;
+    status: string;
+  };
+  task: { objective: string | null; asked_by: string | null };
+  you: { kind: 'person' | 'pool'; name: string };
+  open: boolean;
 }
 
 export type ScheduleMode = 'reuse_plan' | 'review_each' | 'auto';
@@ -777,7 +817,7 @@ export interface ValueProvenance {
   record_key: string | null;
   field: string;
   value: unknown;
-  state: 'verified' | 'probable' | 'ambiguous' | 'stale' | 'conflicting' | 'missing';
+  state: 'verified' | 'probable' | 'ambiguous' | 'confirmed' | 'stale' | 'conflicting' | 'missing';
   source_id: string | null;
   version_id: string | null;
   source_hash: string | null;

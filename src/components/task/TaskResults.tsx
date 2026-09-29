@@ -7,6 +7,7 @@ import type { TaskDetail, ValueProvenance } from '@/lib/types';
 
 const STATE: Record<ValueProvenance['state'], { label: string; cls: string }> = {
   verified: { label: 'Verified', cls: 'border-ok-100 bg-ok-50 text-ok-700' },
+  confirmed: { label: 'Confirmed by a person', cls: 'border-ok-100 bg-ok-50 text-ok-700' },
   probable: { label: 'Probable', cls: 'border-warn-100 bg-warn-50 text-warn-700' },
   ambiguous: { label: 'Unclear reading — confirm', cls: 'border-warn-100 bg-warn-50 text-warn-700' },
   stale: { label: 'Too old', cls: 'border-warn-100 bg-warn-50 text-warn-700' },
@@ -124,7 +125,8 @@ export function TaskResults({ task }: {task: TaskDetail;}) {
             <dt className="text-ink-500">Checked</dt><dd className="text-ink-700">{open.check_result || '—'}</dd>
             {open.corroborated_by && open.corroborated_by.length > 0 && <><dt className="text-ink-500">Also stated by</dt><dd className="break-all text-ink-700">{open.corroborated_by.map((c) => c.locator).join(', ')}</dd></>}
             {open.resolution && open.state === 'ambiguous' && <><dt className="text-ink-500">Could also be</dt><dd className="text-ink-700">{open.resolution.alternatives.length ? open.resolution.alternatives.map((a) => show(a.value)).join(', ') : 'no other reading suggested'} — {open.resolution.rule}</dd></>}
-            {open.resolution && open.state !== 'ambiguous' && <><dt className="text-ink-500">Chosen over</dt><dd className="text-ink-700">{open.resolution.alternatives.map((a) => `${show(a.value)} (${a.locator})`).join(', ')} — rule: {open.resolution.rule}</dd></>}
+            {open.resolution && open.state === 'confirmed' && <><dt className="text-ink-500">Given by</dt><dd className="text-ink-700">{open.resolution.rule.replace(/^confirmed by /, '')}{open.resolution.alternatives.length ? ` — replacing ${open.resolution.alternatives.map((a) => show(a.value)).join(', ')}` : ''}</dd></>}
+            {open.resolution && open.state !== 'ambiguous' && open.state !== 'confirmed' && <><dt className="text-ink-500">Chosen over</dt><dd className="text-ink-700">{open.resolution.alternatives.map((a) => `${show(a.value)} (${a.locator})`).join(', ')} — rule: {open.resolution.rule}</dd></>}
           </dl>
         </div>
       }

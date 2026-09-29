@@ -22,6 +22,10 @@
  */
 
 import type {
+  AnswerView,
+  GapRoute,
+  Person,
+  Pool,
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
   ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract, ValueProvenance,
@@ -378,6 +382,8 @@ export const tasksApi = {
     review_plan?: boolean;
     /** Plan now, review, and reuse the plan on this schedule. */
     schedule?: { name?: string; times: string[]; days?: number[]; timezone: string };
+    /** Where what it could not get goes (phase 6); omitted: delivered partial. */
+    gaps?: GapRoute;
   } = {}) {
     const body = await request<{ data: Task }>('/tasks', {
       method: 'POST',
@@ -573,6 +579,14 @@ export const tasksApi = {
     return body.data;
   },
 
+  /** Close a request shared with people now, with the answers that came in (phase 6). */
+  async closeInput(id: string, requestId: string) {
+    const body = await request<{ data: { request: InputRequest; resumed: boolean } }>(
+      `/tasks/${id}/input-requests/${requestId}/close`, { method: 'POST' },
+    );
+    return body.data;
+  },
+
   /** Say you could not collect it — the task continues without. */
   async declineInput(id: string, requestId: string, notes?: string) {
     const body = await request<{ data: { resumed: boolean } }>(
@@ -747,6 +761,40 @@ export const schedulesApi = {
   },
   async runNow(id: string) {
     const body = await request<{ data: { task_id: string } }>(`/schedules/${id}/run`, { method: 'POST' });
+    return body.data;
+  },
+};
+
+/** Colleagues and pools the owner may ask (phase 6). */
+export const peopleApi = {
+  async list() {
+    const body = await request<{ data: { people: Person[]; pools: Pool[] } }>('/people');
+    return body.data;
+  },
+  async add(input: { name: string; email: string; note?: string }) {
+    const body = await request<{ data: Person }>('/people', { method: 'POST', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async remove(id: string) {
+    await request(`/people/${id}`, { method: 'DELETE' });
+  },
+  async addPool(input: { name: string; endpoint: string; description?: string }) {
+    const body = await request<{ data: Pool }>('/people/pools', { method: 'POST', body: JSON.stringify(input) });
+    return body.data;
+  },
+  async removePool(id: string) {
+    await request(`/people/pools/${id}`, { method: 'DELETE' });
+  },
+};
+
+/** The private answer link — public: a colleague has no account (phase 6). */
+export const answerApi = {
+  async view(token: string) {
+    const body = await request<{ data: AnswerView }>(`/answer/${encodeURIComponent(token)}`, {}, false);
+    return body.data;
+  },
+  async send(token: string, input: { records?: Record<string, unknown>[]; text?: string; notes?: string; decline?: boolean; answered_by?: { id: string; name: string } }) {
+    const body = await request<{ data: { closed: boolean; status: string } }>(`/answer/${encodeURIComponent(token)}`, { method: 'POST', body: JSON.stringify(input) }, false);
     return body.data;
   },
 };
@@ -1086,6 +1134,18 @@ export const simApi = {
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return { name: d.name, mime: d.mime, bytes };
+  },
+
+  /** A request's private answer links — a sim opens them as the colleague would; nothing is emailed. */
+  async requestLinks(requestId: string) {
+    const body = await request<{ data: { assignment_id: string; to: { kind: 'person' | 'pool'; name: string }; status: string; token: string | null }[] }>(`/sim/requests/${requestId}/links`);
+    return body.data;
+  },
+
+  /** The request's deadline passes now; its rule applies. */
+  async passDeadline(requestId: string) {
+    const body = await request<{ data: { status: string } }>(`/sim/requests/${requestId}/deadline`, { method: 'POST' });
+    return body.data;
   },
 
   /** A state a click can't reach (a process that died mid-step), built inside the current run. */
