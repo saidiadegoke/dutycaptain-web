@@ -27,6 +27,7 @@ import { SearchRequestCard } from '@/components/SearchRequestCard';
 import { InputRequestCard } from '@/components/InputRequestCard';
 import { ConfirmRequestCard } from '@/components/ConfirmRequestCard';
 import { TaskSources } from '@/components/task/TaskSources';
+import { TaskResults } from '@/components/task/TaskResults';
 import { TaskTimeline } from '@/components/TaskTimeline';
 import { PlanHistory } from '@/components/PlanHistory';
 import { ModelContext } from '@/components/ModelContext';
@@ -389,6 +390,9 @@ export function TaskDetail() {
               deliveries={deliveries}
               deliveryTo={task.delivery ? endpointNames[task.delivery.endpoint_id] || 'your endpoint' : null}
               onDeliveriesChanged={() => tasksApi.deliveries(taskId).then(setDeliveries).catch(() => {})} />
+
+              {/* The result as a table; each value answers "why this value?" (phase 3). */}
+              <TaskResults task={task} />
 
               {((task.attempt ?? 1) > 1 || (task.retries && task.retries.length > 0)) &&
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-canvas px-3 py-2 text-[12px] text-ink-700">

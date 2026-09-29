@@ -70,11 +70,11 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   },
   {
     id: 'conflicting', variant: 'Conflicting data', example: 'two prices for one product',
-    correct: 'conflicting, or resolved by a declared rule and explained', coveredBy: [], planned: 'Phase 3 — the conflict resolver',
+    correct: 'conflicting, or resolved by a declared rule and explained', coveredBy: ['extraction.conflict-unresolved', 'extraction.conflict-authoritative'],
   },
   {
     id: 'duplicate-source', variant: 'Duplicate source', example: 'the same invoice twice',
-    correct: 'counted once; the duplicate noted', coveredBy: [], planned: 'Phase 3 — merge and de-duplicate',
+    correct: 'counted once; the duplicate noted', coveredBy: ['extraction.merge-corroborated'],
   },
   {
     id: 'permission', variant: 'Permission failure', example: 'OAuth expired',

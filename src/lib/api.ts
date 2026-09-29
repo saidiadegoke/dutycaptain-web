@@ -24,7 +24,7 @@
 import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
   ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
-  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract,
+  TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract, ValueProvenance,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -497,6 +497,12 @@ export const tasksApi = {
   /** Take an attachment back off a task that has not started. */
   async removeAttachment(id: string, name: string) {
     await request(`/tasks/${id}/attachments/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  },
+
+  /** Every value the task delivered, with its lineage (phase 3). */
+  async values(id: string) {
+    const body = await request<{ data: ValueProvenance[] }>(`/tasks/${id}/values`);
+    return body.data;
   },
 
   /** What the task worked from: each source and its versions (migration 060). */

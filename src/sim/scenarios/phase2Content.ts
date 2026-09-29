@@ -23,14 +23,14 @@ const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 export const deepListingFound: Scenario = {
   id: 'content.deep-listing',
   group: GROUP,
-  title: 'A price below 70,000 characters of filters is found',
-  summary: 'The page opens with a wall of filters and the listing sits at the end — the NaijaPrices failure. The page is kept whole, and extraction reads the relevant passage instead of the first part.',
+  title: 'A price below 150,000 characters of filters is found',
+  summary: 'The page opens with a wall of filters — more than one extraction reads — and the listing sits at the end: the NaijaPrices failure. The page is kept whole, and extraction reads the ranked passages instead of the first part.',
   exercises: 'http.request (large cap) → sources/passages → text.extract rankedFit',
   cost: ['ai'],
   estimate: '~35s',
   async run(ctx) {
     const pp = pricePoint(ctx.rng);
-    const page = listing(ctx, `deep-${ctx.token.toLowerCase()}`, [`${pp.product}: ${naira(pp.price_ngn)} ${simMark(ctx.token)}`], 1100);
+    const page = listing(ctx, `deep-${ctx.token.toLowerCase()}`, [`${pp.product}: ${naira(pp.price_ngn)} ${simMark(ctx.token)}`], 1800);
     const task = await startTask(ctx, `Use http.request to fetch ${page.url} , then use text.extract to get the product and its price in naira (fields: product, price_ngn).`);
     const done = await settled(ctx, task.id, 'the task to fetch and extract');
     const extract = done.steps.find((s: Step) => s.capability === 'text.extract');

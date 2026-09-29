@@ -746,6 +746,8 @@ export interface OutputContract {
 export interface MeasuredOutcome {
   status: 'done' | 'partial' | 'failed';
   rule: string;
+  /** The step whose records were counted. */
+  from_step?: string | null;
   expected: number | null;
   found: number;
   covered?: number;
@@ -758,4 +760,26 @@ export interface MeasuredOutcome {
   failed: number;
   not_attempted: number;
   model_verdict?: 'finished' | 'failed';
+}
+
+/** One delivered value and its lineage (phase 3): "why this value?". */
+export interface ValueProvenance {
+  id: string;
+  step_id: string | null;
+  attempt: number;
+  record_index: number;
+  record_key: string | null;
+  field: string;
+  value: unknown;
+  state: 'verified' | 'probable' | 'stale' | 'conflicting' | 'missing';
+  source_id: string | null;
+  version_id: string | null;
+  source_hash: string | null;
+  locator: string | null;
+  evidence: string | null;
+  corroborated_by: { locator: string; source_id: string | null }[] | null;
+  resolution: { rule: string; alternatives: { value: unknown; locator: string; state: string }[] } | null;
+  extracted_by: string | null;
+  check_result: string | null;
+  created_at: string;
 }
