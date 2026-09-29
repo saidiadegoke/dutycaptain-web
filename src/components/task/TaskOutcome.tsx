@@ -41,6 +41,7 @@ const WAITING: Partial<Record<TaskDetail['status'], string>> = {
   waiting_for_approval: 'It is waiting for you to approve an action.',
   waiting_for_input: 'It is waiting for you — see the request above.',
   waiting_for_device: 'It is waiting for your computer to come online.',
+  waiting_for_event: 'It is waiting for an event to arrive at one of your triggers — or stop waiting on the step to go on without it.',
   waiting_for_budget: 'It reached its spending limit. Raise the budget to let it continue.',
   paused: 'It is paused. Resume it to carry on.',
   queued: 'It is queued and will start shortly.',

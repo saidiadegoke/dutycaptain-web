@@ -25,6 +25,7 @@ const taskStyles: Record<TaskStatus, { label: string; cls: string; dot: string }
   waiting_for_review: { label: 'Ready for your review', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
   // Its own badge rather than a shade of "waiting": the question it asks a
   // person is about money, and the answer is a number (P2-07).
+  waiting_for_event: { label: 'Waiting for an event', cls: 'bg-brand-50 text-brand-700 border-brand-100', dot: 'bg-brand-600' },
   waiting_for_budget: { label: 'Out of budget', cls: 'bg-warn-50 text-warn-700 border-warn-100', dot: 'bg-warn-600' },
   paused: { label: 'Paused', cls: 'bg-canvas text-ink-700 border-line-strong', dot: 'bg-ink-500' },
   done: { label: 'Done', cls: 'bg-ok-50 text-ok-700 border-ok-100', dot: 'bg-ok-600' },

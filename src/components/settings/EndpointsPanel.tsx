@@ -16,11 +16,47 @@ const TEMPLATE_HINT = `{
   "task": "{{task.id}}"
 }`;
 
+/**
+ * An Authorization value with no scheme ("sk_live_…" rather than
+ * "Bearer sk_live_…"). Sent exactly as typed — nothing is added — so saving
+ * one asks first: most APIs expect a scheme, and some really do want the bare
+ * key.
+ */
+const bareAuthorization = (rows: HeaderRow[]) => rows.find((r) => r.name.trim().toLowerCase() === 'authorization'
+  && r.value.trim() && !/^[A-Za-z][\w.-]*\s+\S/.test(r.value.trim()));
+
 function rowsOf(e: Endpoint | null): HeaderRow[] {
   if (!e) return [{ name: 'Authorization', value: '', secret: true }];
   return [
   ...Object.entries(e.headers).map(([name, value]) => ({ name, value, secret: false })),
   ...e.secret_headers.map((name) => ({ name, value: '', secret: true, kept: true }))];
+
+}
+
+/**
+ * The secret this endpoint's sends are signed with. Every send carries
+ * `DutyCaptain-Signature: t=<unix>,v1=<HMAC-SHA256 of "<t>.<body>">`, so the
+ * receiving system can check it came from DutyCaptain (and is not a replay).
+ */
+function SigningSecret({ id }: {id: string;}) {
+  const [secret, setSecret] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function act(fn: () => Promise<string>) {
+    setBusy(true);
+    try { setSecret(await fn()); } finally { setBusy(false); }
+  }
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-ink-500">
+      <span>Signed sends</span>
+      {secret ?
+      <>
+          <code className="select-all rounded bg-canvas px-1.5 py-0.5 font-mono text-ink-800">{secret}</code>
+          <button type="button" disabled={busy} onClick={() => setSecret(null)} className="cursor-pointer font-medium text-brand-700 hover:text-brand-500">Hide</button>
+          <button type="button" disabled={busy} onClick={() => { if (window.confirm('Make a new signing secret? The old one stops working at once.')) act(() => endpointsApi.rotateSigningSecret(id)); }} className="cursor-pointer font-medium text-danger-700 hover:underline">Rotate</button>
+        </> :
+      <button type="button" disabled={busy} onClick={() => act(() => endpointsApi.signingSecret(id))} className="cursor-pointer font-medium text-brand-700 hover:text-brand-500">Show signing secret</button>
+      }
+    </p>);
 
 }
 
@@ -36,11 +72,21 @@ function EndpointForm({ endpoint, onSaved, onCancel }: {endpoint: Endpoint | nul
   const [template, setTemplate] = useState(endpoint?.body_template ? JSON.stringify(endpoint.body_template, null, 2) : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Saving an Authorization value with no scheme waits for a yes (see bareAuthorization).
+  const [confirmBare, setConfirmBare] = useState(false);
 
-  const setRow = (i: number, patch: Partial<HeaderRow>) => setRows(rows.map((r, j) => j === i ? { ...r, ...patch } : r));
+  const setRow = (i: number, patch: Partial<HeaderRow>) => {
+    setConfirmBare(false);
+    setRows(rows.map((r, j) => j === i ? { ...r, ...patch } : r));
+  };
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  async function save(e: React.FormEvent | null, { asTyped = false } = {}) {
+    e?.preventDefault();
+    if (!asTyped && bareAuthorization(rows)) {
+      setConfirmBare(true);
+      return;
+    }
+    setConfirmBare(false);
     setBusy(true);
     setError(null);
     const used = rows.filter((r) => r.name.trim());
@@ -155,6 +201,18 @@ function EndpointForm({ endpoint, onSaved, onCancel }: {endpoint: Endpoint | nul
         <textarea value={template} onChange={(e) => setTemplate(e.target.value)} rows={5} placeholder={TEMPLATE_HINT} className={`${field} mt-1 resize-y font-mono text-[12px]`} />
       </label>
 
+      {confirmBare &&
+      <div role="alertdialog" aria-label="Authorization without a scheme" className="rounded-md border border-warn-100 bg-warn-50 px-3 py-2.5 text-[12px] text-ink-800">
+          <p>
+            The <span className="font-mono">Authorization</span> value has no scheme — it is sent exactly as typed. Most APIs expect{' '}
+            <span className="font-mono">Bearer &lt;key&gt;</span>; some want the bare key. Is it what this API expects?
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={() => save(null, { asTyped: true })} className="cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1 font-medium text-ink-800 hover:bg-canvas">Yes, send it as typed</button>
+            <button type="button" onClick={() => setConfirmBare(false)} className="cursor-pointer rounded-md px-2.5 py-1 font-medium text-brand-700 hover:text-brand-500">No — let me change it</button>
+          </div>
+        </div>
+      }
       {error && <p role="alert" className="text-[12px] text-danger-700">{error}</p>}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel} className="cursor-pointer rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 hover:bg-canvas">Cancel</button>
@@ -252,6 +310,7 @@ export function EndpointsPanel() {
                 }
                     <span>{e.body_template ? 'Custom body' : 'Standard result'}</span>
                   </p>
+                  <SigningSecret id={e.id} />
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button type="button" disabled={testing === e.id} onClick={() => test(e)} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-line bg-panel px-2.5 py-1.5 text-[12px] font-medium text-ink-700 hover:bg-canvas disabled:opacity-60">

@@ -83,7 +83,7 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   },
   {
     id: 'permission', variant: 'Permission failure', example: 'OAuth expired',
-    correct: 'that step stops with "reconnect"; the task does not fail blindly', coveredBy: [], planned: 'Phase 7 — connections',
+    correct: 'that step stops with "reconnect"; the task does not fail blindly', coveredBy: ['connections.expired'],
   },
   {
     id: 'sensitive', variant: 'Sensitive data leaving', example: 'a bank statement in a task that sends results',

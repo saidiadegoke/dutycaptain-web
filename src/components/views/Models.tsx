@@ -91,7 +91,7 @@ function Row({ state, title, detail }: { state: string; title: string; detail: s
 
 const STATUS_ORDER: TaskStatus[] = [
   'done', 'partial', 'queued', 'planning', 'running', 'waiting_for_review', 'waiting_for_approval', 'waiting_for_input',
-  'waiting_for_device', 'waiting_for_budget', 'paused', 'failed', 'cancelled',
+  'waiting_for_device', 'waiting_for_budget', 'waiting_for_event', 'paused', 'failed', 'cancelled',
 ];
 
 export function Models() {

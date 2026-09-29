@@ -9,6 +9,7 @@ import type { Schedule } from '@/lib/types';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { toolLabel } from '@/components/task/PlanReview';
 import { ago } from '@/utils/format';
+import { WatchesPanel } from '@/components/WatchesPanel';
 
 const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MODE: Record<Schedule['mode'], string> = {
@@ -150,6 +151,7 @@ export function Schedules() {
         )}
         </ul>
       }
+      <WatchesPanel />
     </div>);
 
 }

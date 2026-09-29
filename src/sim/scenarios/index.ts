@@ -11,6 +11,8 @@ import { EXTRACTION_SCENARIOS } from './phase3Extraction';
 import { SKILL_SCENARIOS } from './phase4Skills';
 import { IMAGE_SCENARIOS } from './phase5Images';
 import { PEOPLE_SCENARIOS } from './phase6People';
+import { CONNECTION_SCENARIOS } from './phase7Connections';
+import { ACCEPTANCE_SCENARIOS } from './acceptance';
 
 /**
  * Every sim, in order. THE RULE: a feature ships with its sim — add it here in
@@ -35,5 +37,5 @@ const environment: Scenario = {
   },
 };
 
-export const SCENARIOS: Scenario[] = [environment, ...LEDGER_SCENARIOS, ...DURABLE_SCENARIOS, ...PROVENANCE_SCENARIOS, ...TRUST_SCENARIOS, ...BUDGET_SCENARIOS, ...OUTCOME_SCENARIOS, ...CONTENT_SCENARIOS, ...EXTRACTION_SCENARIOS, ...SKILL_SCENARIOS, ...IMAGE_SCENARIOS, ...PEOPLE_SCENARIOS];
+export const SCENARIOS: Scenario[] = [environment, ...LEDGER_SCENARIOS, ...DURABLE_SCENARIOS, ...PROVENANCE_SCENARIOS, ...TRUST_SCENARIOS, ...BUDGET_SCENARIOS, ...OUTCOME_SCENARIOS, ...CONTENT_SCENARIOS, ...EXTRACTION_SCENARIOS, ...SKILL_SCENARIOS, ...IMAGE_SCENARIOS, ...PEOPLE_SCENARIOS, ...CONNECTION_SCENARIOS, ...ACCEPTANCE_SCENARIOS];
 export const GROUPS = Array.from(new Set(SCENARIOS.map((s) => s.group)));

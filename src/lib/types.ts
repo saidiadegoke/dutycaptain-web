@@ -22,6 +22,7 @@ export type TaskStatus =
   | 'waiting_for_device'
   | 'waiting_for_budget'
   | 'waiting_for_input'
+  | 'waiting_for_event'
   | 'paused'
   | 'done'
   | 'partial'
@@ -471,7 +472,7 @@ export const TERMINAL: TaskStatus[] = ['done', 'failed', 'cancelled'];
 
 /** Alive, but waiting on something rather than working. */
 export const SUSPENDED: TaskStatus[] = [
-  'waiting_for_review', 'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'waiting_for_input', 'paused',
+  'waiting_for_review', 'waiting_for_approval', 'waiting_for_device', 'waiting_for_budget', 'waiting_for_input', 'waiting_for_event', 'paused',
 ];
 
 export const isTerminal = (s: TaskStatus) => TERMINAL.includes(s);
@@ -668,11 +669,28 @@ export interface InputRequest {
 /** Who a request was sent to, what became of each, and the answers so far (phase 6). */
 export interface RequestPeople {
   asked: { id: string; to: { kind: 'person' | 'pool'; name: string; email?: string }; status: string; sent: string | null; error: string | null; opened_at: string | null; answered_at: string | null }[];
-  answers: { id: string; by: { kind: 'owner' | 'person' | 'pool'; name: string; pool?: string }; records: number; declined: boolean; notes: string | null; at: string }[];
+  answers: { id: string; by: { kind: 'owner' | 'person' | 'pool'; name: string; pool?: string }; records: number; files?: string[]; declined: boolean; notes: string | null; at: string }[];
 }
 
 export interface Person { id: string; name: string; email: string; note: string | null; created_at: string }
-export interface Pool { id: string; name: string; description: string | null; endpoint_id: string | null; endpoint_name: string | null; created_at: string }
+export interface Pool {
+  id: string; name: string; description: string | null; endpoint_id: string | null; endpoint_name: string | null;
+  /** Their own close/cancel call, if they have one — DutyCaptain sends nothing on close otherwise. */
+  close_endpoint_id: string | null; close_endpoint_name: string | null;
+  /** Where their id for a request is in their reply, e.g. data.id — for {{partner_ref}}. */
+  ref_path: string | null;
+  created_at: string;
+}
+/** A pool integration test and its checks (Settings → People). */
+export interface PoolTest {
+  id: string;
+  status: 'running' | 'passed' | 'failed';
+  checks: { key: 'sent' | 'ref' | 'answer' | 'closed'; title: string; status: 'pending' | 'pass' | 'warn' | 'fail'; detail: string }[];
+  /** Exactly what DutyCaptain sent to their endpoints, and what came back. */
+  exchanges: { what: 'request' | 'close'; request?: { method: string; url: string; headers: string[]; body: unknown }; response?: { status: number; body: unknown } | null; error?: string }[];
+  created_at: string;
+  expires_at: string;
+}
 export type GapRoute = { to: 'owner' } | { to: 'people'; people: string[] } | { to: 'pool'; pool: string };
 
 /** What the public answer page shows (GET /answer/:token). */
@@ -827,5 +845,149 @@ export interface ValueProvenance {
   resolution: { rule: string; alternatives: { value: unknown; locator: string; state: string }[] } | null;
   extracted_by: string | null;
   check_result: string | null;
+  created_at: string;
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 7: connections, watches, triggers, brands and drafts
+ * ------------------------------------------------------------------------ */
+
+/** An account's own access to a platform through its official API. Tokens are never returned. */
+export interface Connection {
+  id: string;
+  platform: string;
+  label: string;
+  status: 'pending' | 'active' | 'expired' | 'revoked' | 'error';
+  account: { id: string; username?: string; name?: string } | null;
+  handle: string | null;
+  scopes: string[];
+  expires_at: string | null;
+  last_error: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface PlatformInfo {
+  id: string;
+  label: string;
+  scopes: string[];
+  configured: boolean;
+  missing?: string;
+  sim?: boolean;
+}
+
+/** State across runs: what a standing task saw, and when. */
+export interface Watch {
+  id: string;
+  name: string;
+  schedule_id: string | null;
+  key_field: string;
+  metric_fields: string[];
+  runs: number;
+  last_run_at: string | null;
+  last_task_id: string | null;
+  items?: number;
+  sent?: number;
+  created_at: string;
+}
+
+export interface WatchGrowth { from: number; to: number; change: number; pct: number | null; over_hours: number; per_hour: number | null }
+
+export interface WatchDetail extends Omit<Watch, 'items'> {
+  items: {
+    key: string;
+    data: Record<string, unknown>;
+    readings: number;
+    latest: Record<string, number>;
+    growth: Record<string, WatchGrowth>;
+    first_seen_at: string;
+    last_seen_at: string;
+    sent_at: string | null;
+    sent_task_id: string | null;
+    pending: boolean;
+  }[];
+}
+
+/** A URL of DutyCaptain's that events are sent to: each starts a task, or reaches a step waiting for it. */
+export interface Trigger {
+  id: string;
+  name: string;
+  objective: string | null;
+  mode: 'auto' | 'review_each' | 'none';
+  event_types: string[];
+  source: 'app' | 'x' | 'sim';
+  connection_id: string | null;
+  enabled: boolean;
+  url: string;
+  last_event_at: string | null;
+  last_task_id: string | null;
+  event_count: number;
+  created_at: string;
+  /** Only when just created. */
+  secret?: string;
+}
+
+export interface TriggerEvent {
+  id: string;
+  type: string | null;
+  external_id: string | null;
+  outcome: 'started' | 'resumed' | 'ignored' | 'duplicate' | 'skipped' | 'received';
+  task_id: string | null;
+  resumed_steps: number;
+  received_at: string;
+  preview: string;
+}
+
+export interface EventWait {
+  id: string;
+  task_id: string;
+  step_id: string;
+  step_title: string;
+  rule: { type?: string; match?: Record<string, string>; hours?: number };
+  status: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface TriggerDetail extends Trigger {
+  events: TriggerEvent[];
+  waits: EventWait[];
+}
+
+/** Brand memory: what drafts are written from, and checked against. */
+export interface Brand {
+  id: string;
+  name: string;
+  voice: string | null;
+  facts: { name: string; value: string }[];
+  never_say: string[];
+  hashtags: string[];
+  examples: string[];
+  updated_at: string;
+}
+
+export interface DraftChecks {
+  ok?: boolean;
+  problems?: string[];
+  escalate?: string;
+  length?: { chars: number; limit: number };
+  prices?: { text: string; value: number; known: boolean }[];
+}
+
+/** What content generation produces in phase 7: never posted. */
+export interface Draft {
+  id: string;
+  brand_id: string | null;
+  task_id: string | null;
+  platform: string | null;
+  kind: 'post' | 'reply' | 'image';
+  text: string | null;
+  hashtags: string[];
+  image_artifact_id: string | null;
+  planned_for: string | null;
+  in_reply_to: string | null;
+  checks: DraftChecks;
+  status: 'draft' | 'approved' | 'rejected';
+  decided_at: string | null;
   created_at: string;
 }

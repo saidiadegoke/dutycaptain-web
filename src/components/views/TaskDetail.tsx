@@ -36,12 +36,13 @@ import { AuditChain } from '@/components/AuditChain';
 import { CostPanel } from '@/components/CostPanel';
 import { TaskStatusBadge } from '@/components/StatusBadge';
 import { TaskOutcome } from '@/components/task/TaskOutcome';
+import { AskForGaps } from '@/components/task/AskForGaps';
 import { PlanReview } from '@/components/task/PlanReview';
 import { ContractCard } from '@/components/task/ContractCard';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
-import { endpointsApi, tasksApi, ApiError } from '@/lib/api';
+import { endpointsApi, tasksApi, triggersApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
-import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType } from '@/lib/types';
+import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType, TimelineEvent } from '@/lib/types';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { ago, bytes } from '@/utils/format';
 
@@ -184,7 +185,9 @@ export function TaskDetail() {
   // button that teaches people not to trust the buttons.
   const canResume = isSuspended(task.status)
   && task.status !== 'waiting_for_approval'
-  && task.status !== 'waiting_for_budget';
+  && task.status !== 'waiting_for_budget'
+  // An event is sent, or the wait stopped on its step (EventWaits), not resumed past.
+  && task.status !== 'waiting_for_event';
   const canCancel = !isTerminal(task.status);
 
   const selectedStep = view.startsWith('step:') ? task.steps.find((s) => s.id === view.slice(5)) || null : null;
@@ -363,6 +366,8 @@ export function TaskDetail() {
               <InputRequestCard key={r.id} taskId={task.id} request={r} onDone={done} />;
             })}
 
+              <EventWaits events={events} onChanged={() => load(true)} />
+
               <TaskSources taskId={task.id} />
 
               {/* What was asked, in full — formatting and the files it came with. */}
@@ -400,6 +405,10 @@ export function TaskDetail() {
               deliveries={deliveries}
               deliveryTo={task.delivery ? endpointNames[task.delivery.endpoint_id] || 'your endpoint' : null}
               onDeliveriesChanged={() => tasksApi.deliveries(taskId).then(setDeliveries).catch(() => {})} />
+
+              {/* Finished partial: ask for only what is missing (phase 6). */}
+              {task.status === 'partial' && !inputs.some((r) => r.gaps) && task.steps.some((s) => s.status === 'partial' && s.capability === 'text.extract') &&
+              <AskForGaps taskId={task.id} onAsked={() => { load(true); tasksApi.inputRequests(taskId).then((all) => setInputs(all.filter((r) => r.status === 'pending'))).catch(() => {}); }} />}
 
               {/* The result as a table; each value answers "why this value?" (phase 3). */}
               <TaskResults task={task} />
@@ -596,4 +605,48 @@ function widestOverlap(steps: Step[]): number {
     if (n > widest) widest = n;
   }
   return widest;
+}
+
+/**
+ * Steps waiting for an event (phase 7, event.wait): which trigger, what kind of
+ * event, until when — and a way to stop waiting, so the step goes on without it.
+ * Read from the timeline: an `event.awaited` with no `event.received` after it.
+ */
+function EventWaits({ events, onChanged }: { events: TimelineEvent[]; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const open = new Map<string, TimelineEvent>();
+  for (const e of events) {
+    const step = String(e.payload?.step_key || e.stepKey || e.stepId || '');
+    if (e.type === 'event.awaited') open.set(step, e);
+    if (e.type === 'event.received') open.delete(step);
+  }
+  if (!open.size) return null;
+  return (
+    <section className="rounded-xl border border-brand-100 bg-brand-50 px-5 py-4">
+      <h2 className="text-[12px] font-semibold text-brand-700">Waiting for an event</h2>
+      {error && <p role="alert" className="mt-1 text-[12px] text-danger-700">{error}</p>}
+      <ul className="mt-2 space-y-2">
+        {[...open.values()].map((e) => {
+          const p = e.payload as { title?: string; trigger?: string; type?: string; until?: string; wait_id?: string };
+          return (
+            <li key={e.seq} className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-ink-800">
+              <span>
+                <span className="font-medium">{p.title || 'A step'}</span> waits for {p.type ? <>a <code className="font-mono text-[12px]">{p.type}</code> event</> : 'an event'} at <Link href="/app/connections" className="text-brand-700 hover:text-brand-500">{p.trigger || 'a trigger'}</Link>
+                {p.until && <span className="text-ink-500"> · until {new Date(p.until).toLocaleString()}</span>}
+              </span>
+              {p.wait_id &&
+              <button type="button" disabled={busy === p.wait_id}
+                onClick={async () => {
+                  setBusy(p.wait_id || null);
+                  setError(null);
+                  try { await triggersApi.stopWaiting(p.wait_id as string); onChanged(); } catch (err) { setError(err instanceof ApiError ? err.message : 'Could not stop waiting.'); } finally { setBusy(null); }
+                }}
+                className="cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-canvas disabled:opacity-60">
+                  Stop waiting — go on without it
+                </button>}
+            </li>);
+        })}
+      </ul>
+    </section>);
 }

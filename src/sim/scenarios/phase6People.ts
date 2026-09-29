@@ -219,4 +219,63 @@ export const gapsToOwner: Scenario = {
   },
 };
 
-export const PEOPLE_SCENARIOS = [colleagueLink, twoAnswers, deadlineContinue, poolPartner, nonBlocking, gapsToOwner];
+export const linkFile: Scenario = {
+  id: 'people.link-file',
+  group: GROUP,
+  title: 'A colleague sends a spreadsheet through their link: its rows come back, credited',
+  summary: 'The colleague uploads a CSV on their answer page instead of typing rows. Its columns match the fields, so it becomes rows — each credited to them — and the file is kept with the answer.',
+  exercises: 'POST /answer/:token/files → uploads (prefixed per link) → answer files → CSV rows → credits',
+  cost: ['ai'],
+  estimate: '~50s',
+  async run(ctx) {
+    const f = await colleague(ctx, 'Funke');
+    const [a, b] = [pricePoint(ctx.rng), pricePoint(ctx.rng)];
+    const task = await tasksApi.create(`Use human.collect to ask ${f.name} for today's prices at their market ${FIELDS}. That is the whole task. ${simMark(ctx.token)}`, { budget: { caps: SIM_CAPS } });
+    ctx.link('Open the task', `/app/tasks/${task.id}`);
+    const req = await openRequest(ctx, task.id);
+    const token = await linkFor(req.id, f.name);
+    const csv = `product,price\n"${a.product}",${a.price_ngn}\n"${b.product}",${b.price_ngn}\n`;
+    const up = await answerApi.upload(token, new File([csv], `market-${ctx.token.toLowerCase()}.csv`, { type: 'text/csv' }));
+    await answerApi.send(token, { files: [up.file] });
+    const done = await settled(ctx, task.id, 'the task to finish');
+    const data = (collectStep(done)?.observation?.data || {}) as CollectData & { files?: { name: string; rows?: number }[] };
+    return [
+      expectEqual('The CSV became two rows', 2, data.records?.length),
+      expectEqual('…both credited to the colleague', [f.name, f.name], (data.credits || []).map((c) => c.by)),
+      expectTrue('The file is kept with the answer', Boolean(data.files?.some((x) => x.rows === 2)), 'a file with 2 rows', data.files),
+      expectEqual('The task finished', 'done', done.status),
+    ];
+  },
+};
+
+export const gapsAfterFinish: Scenario = {
+  id: 'gaps.after-finish',
+  group: GROUP,
+  title: 'A task that finished partial asks afterwards — and becomes done',
+  summary: 'No gap route was set, so the task finishes partial with one price missing. Asked afterwards ("Ask me for only what is missing"), the answer completes it: measured again by code, the task is done.',
+  exercises: 'POST /tasks/:id/gaps → gaps.maybeAsk (route given) → answer → merge → outcome.measure → partial → done (completeAfterGaps)',
+  cost: ['ai'],
+  estimate: '~60s',
+  async run(ctx) {
+    const [a, b, c] = [pricePoint(ctx.rng), pricePoint(ctx.rng), pricePoint(ctx.rng)];
+    const lines = [`${a.product}: ${naira(a.price_ngn)}`, `${b.product}: ${naira(b.price_ngn)}`, `${c.product}: call for price ${simMark(ctx.token)}`];
+    const p = btoa(unescape(encodeURIComponent(JSON.stringify({ title: 'Shop list', lines })))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const url = `${ctx.health.self_url}/sim/receiver/${ctx.runId}/${encodeURIComponent(`shop2-${ctx.token.toLowerCase()}`)}/page?p=${p}`;
+    const task = await tasksApi.create(`Use http.request to fetch ${url} , then text.extract every product and its price in naira (fields: product as the key, price_ngn required — all three products). ${simMark(ctx.token)}`, { budget: { caps: SIM_CAPS } });
+    ctx.link('Open the task', `/app/tasks/${task.id}`);
+    const first = await settled(ctx, task.id, 'the task to finish partial');
+    const asked = await tasksApi.askForGaps(task.id, { to: 'owner' });
+    const req = asked.requests[0];
+    const row = (req.guide?.prefill || [])[0] || {};
+    ctx.log(`asked afterwards for: ${String(row._about || '')}`);
+    await tasksApi.answerInput(task.id, req.id, { records: [{ ...Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v === null ? '' : String(v)])), price_ngn: String(c.price_ngn) }] });
+    const after = await ctx.poll('the task to be measured again', () => tasksApi.get(task.id), (t) => t.status !== 'partial', { timeoutMs: 30_000 }).catch(() => tasksApi.get(task.id));
+    return [
+      expectEqual('It finished partial first', 'partial', first.status),
+      expectEqual('One gap was asked for, afterwards', 1, asked.requests.length),
+      expectEqual('The answer completed it: done', 'done', after.status),
+    ];
+  },
+};
+
+export const PEOPLE_SCENARIOS = [colleagueLink, twoAnswers, deadlineContinue, poolPartner, nonBlocking, gapsToOwner, linkFile, gapsAfterFinish];

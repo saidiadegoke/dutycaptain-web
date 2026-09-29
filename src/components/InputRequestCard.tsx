@@ -144,7 +144,7 @@ export function InputRequestCard({ taskId, request, onDone }: {taskId: string;re
             </button>
           </div>
         )}
-        {!shared && !gaps &&
+        {!gaps &&
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" disabled={uploading} onClick={() => picker.current?.click()}
           className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500 disabled:cursor-wait disabled:opacity-60">
@@ -202,7 +202,7 @@ function PeopleStatus({ request }: {request: InputRequest;}) {
             <span className={a.status === 'failed' ? 'text-danger-700' : 'text-ink-500'} title={a.error || undefined}>
               {a.status === 'failed' ? `could not be reached${a.error ? `: ${a.error}` : ''}` :
             a.to.kind === 'pool' ? `${p.answers.filter((x) => x.by.kind === 'pool').length} answer(s) so far` :
-            a.status === 'answered' ? `answered — ${answersFrom(a.to.name).reduce((n, x) => n + x.records, 0)} row(s)` :
+            a.status === 'answered' ? `answered — ${answersFrom(a.to.name).reduce((n, x) => n + x.records, 0)} row(s)${answersFrom(a.to.name).flatMap((x) => x.files || []).length ? `, ${answersFrom(a.to.name).flatMap((x) => x.files || []).join(', ')}` : ''}` :
             a.status === 'declined' ? 'could not help' :
             a.opened_at ? 'opened the link' : a.sent === 'skipped (simulation)' ? 'link ready (simulation — not emailed)' : 'sent'}
             </span>

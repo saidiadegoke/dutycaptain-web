@@ -13,7 +13,7 @@ import type { RunContext } from '../core/types';
 /** Tight caps on every sim task: real AI, minimum spend (and the budget feature enforces them). */
 export const SIM_CAPS = { usd: 0.05, steps: 5 };
 
-const WAITING: TaskStatus[] = ['waiting_for_input', 'waiting_for_approval', 'waiting_for_review', 'waiting_for_budget', 'waiting_for_device', 'paused'];
+const WAITING: TaskStatus[] = ['waiting_for_input', 'waiting_for_approval', 'waiting_for_review', 'waiting_for_budget', 'waiting_for_device', 'waiting_for_event', 'paused'];
 const FINAL: TaskStatus[] = ['done', 'failed', 'cancelled'];
 
 /** An endpoint pointing at the built-in receiver, as Settings would save it. */

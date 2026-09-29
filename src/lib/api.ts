@@ -23,12 +23,14 @@
 
 import type {
   AnswerView,
+  PoolTest,
   GapRoute,
   Person,
   Pool,
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
   ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract, ValueProvenance,
+  Connection, PlatformInfo, Watch, WatchDetail, Trigger, TriggerDetail, Brand, Draft, DraftChecks,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -579,6 +581,12 @@ export const tasksApi = {
     return body.data;
   },
 
+  /** A task that finished partial asks for only what is missing (phase 6). */
+  async askForGaps(id: string, route: GapRoute) {
+    const body = await request<{ data: { requests: InputRequest[] } }>(`/tasks/${id}/gaps`, { method: 'POST', body: JSON.stringify(route) });
+    return body.data;
+  },
+
   /** Close a request shared with people now, with the answers that came in (phase 6). */
   async closeInput(id: string, requestId: string) {
     const body = await request<{ data: { request: InputRequest; resumed: boolean } }>(
@@ -734,6 +742,15 @@ export const endpointsApi = {
     const body = await request<{ data: SendResult }>(`/endpoints/${id}/test`, { method: 'POST' });
     return body.data;
   },
+  /** The secret every send to this endpoint is signed with (DutyCaptain-Signature). */
+  async signingSecret(id: string) {
+    const body = await request<{ data: { secret: string } }>(`/endpoints/${id}/signing-secret`);
+    return body.data.secret;
+  },
+  async rotateSigningSecret(id: string) {
+    const body = await request<{ data: { secret: string } }>(`/endpoints/${id}/signing-secret/rotate`, { method: 'POST' });
+    return body.data.secret;
+  },
 };
 
 export const schedulesApi = {
@@ -778,12 +795,109 @@ export const peopleApi = {
   async remove(id: string) {
     await request(`/people/${id}`, { method: 'DELETE' });
   },
-  async addPool(input: { name: string; endpoint: string; description?: string }) {
+  async addPool(input: { name: string; endpoint: string; description?: string; close_endpoint?: string; ref_path?: string }) {
     const body = await request<{ data: Pool }>('/people/pools', { method: 'POST', body: JSON.stringify(input) });
     return body.data;
   },
   async removePool(id: string) {
     await request(`/people/pools/${id}`, { method: 'DELETE' });
+  },
+  /** Test the pool's integration: a sample request to its app, then the checks. */
+  async testPool(id: string) {
+    const body = await request<{ data: PoolTest }>(`/people/pools/${id}/test`, { method: 'POST' });
+    return body.data;
+  },
+  async poolTest(id: string) {
+    const body = await request<{ data: PoolTest | null }>(`/people/pools/${id}/test`);
+    return body.data;
+  },
+};
+
+/** Connections to platforms (phase 7): the account's own, through the official API. */
+export const connectionsApi = {
+  async list() {
+    return (await request<{ data: { connections: Connection[]; platforms: PlatformInfo[] } }>('/connections')).data;
+  },
+  /** Where to send the owner to allow DutyCaptain; they come back through the API's callback to returnTo. */
+  async start(platform: string, input: { reconnect?: string; return_to?: string } = {}) {
+    return (await request<{ data: { id: string; authorize_url: string } }>(`/connections/${platform}/start`, { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  async check(id: string) {
+    return (await request<{ data: { ok: boolean; code?: string; message?: string; account?: Connection['account']; connection: Connection } }>(`/connections/${id}/check`, { method: 'POST' })).data;
+  },
+  async remove(id: string) {
+    await request(`/connections/${id}`, { method: 'DELETE' });
+  },
+};
+
+/** Watches: what standing tasks remember across runs (phase 7). */
+export const watchesApi = {
+  async list() {
+    return (await request<{ data: Watch[] }>('/watches')).data;
+  },
+  async get(id: string) {
+    return (await request<{ data: WatchDetail }>(`/watches/${id}`)).data;
+  },
+  async reset(id: string) {
+    await request(`/watches/${id}/reset`, { method: 'POST' });
+  },
+  async remove(id: string) {
+    await request(`/watches/${id}`, { method: 'DELETE' });
+  },
+};
+
+/** Triggers: events that start tasks, or reach steps waiting for them (phase 7). */
+export const triggersApi = {
+  async list() {
+    return (await request<{ data: Trigger[] }>('/triggers')).data;
+  },
+  async get(id: string) {
+    return (await request<{ data: TriggerDetail }>(`/triggers/${id}`)).data;
+  },
+  async create(input: { name: string; objective?: string; mode: Trigger['mode']; event_types?: string[]; source?: Trigger['source']; deliver_to?: unknown }) {
+    return (await request<{ data: Trigger }>('/triggers', { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  async update(id: string, input: Partial<{ name: string; objective: string; mode: Trigger['mode']; event_types: string[]; enabled: boolean }>) {
+    return (await request<{ data: Trigger }>(`/triggers/${id}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
+  },
+  async secret(id: string, rotate = false) {
+    return (await request<{ data: { secret: string } }>(`/triggers/${id}/secret`, { method: 'POST', body: JSON.stringify({ rotate }) })).data;
+  },
+  async remove(id: string) {
+    await request(`/triggers/${id}`, { method: 'DELETE' });
+  },
+  /** Stop a step waiting for an event: it goes on without it. */
+  async stopWaiting(waitId: string) {
+    await request(`/triggers/waits/${waitId}/stop`, { method: 'POST' });
+  },
+};
+
+/** Brand memory and drafts (phase 7): nothing is posted. */
+export const brandsApi = {
+  async list() {
+    return (await request<{ data: Brand[] }>('/brands')).data;
+  },
+  async create(input: Partial<Omit<Brand, 'id' | 'updated_at'>> & { name: string }) {
+    return (await request<{ data: Brand }>('/brands', { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  async update(id: string, input: Partial<Omit<Brand, 'id' | 'updated_at'>>) {
+    return (await request<{ data: Brand }>(`/brands/${id}`, { method: 'PATCH', body: JSON.stringify(input) })).data;
+  },
+  async remove(id: string) {
+    await request(`/brands/${id}`, { method: 'DELETE' });
+  },
+  async check(text: string, brandId?: string, platform?: string) {
+    return (await request<{ data: DraftChecks }>('/brands/check', { method: 'POST', body: JSON.stringify({ text, brand_id: brandId, platform }) })).data;
+  },
+};
+
+export const draftsApi = {
+  async list(filter: { status?: Draft['status']; task_id?: string } = {}) {
+    const q = new URLSearchParams(Object.entries(filter).filter(([, v]) => v) as [string, string][]).toString();
+    return (await request<{ data: Draft[] }>(`/drafts${q ? `?${q}` : ''}`)).data;
+  },
+  async decide(id: string, action: 'approve' | 'reject' | 'edit', text?: string) {
+    return (await request<{ data: Draft }>(`/drafts/${id}/decide`, { method: 'POST', body: JSON.stringify({ action, ...(text !== undefined ? { text } : {}) }) })).data;
   },
 };
 
@@ -793,7 +907,14 @@ export const answerApi = {
     const body = await request<{ data: AnswerView }>(`/answer/${encodeURIComponent(token)}`, {}, false);
     return body.data;
   },
-  async send(token: string, input: { records?: Record<string, unknown>[]; text?: string; notes?: string; decline?: boolean; answered_by?: { id: string; name: string } }) {
+  /** A file for the answer; returns { file } to list in the answer's `files`. */
+  async upload(token: string, file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    const body = await request<{ data: SearchUpload }>(`/answer/${encodeURIComponent(token)}/files`, { method: 'POST', body: form }, false);
+    return body.data;
+  },
+  async send(token: string, input: { records?: Record<string, unknown>[]; text?: string; notes?: string; decline?: boolean; files?: string[]; answered_by?: { id: string; name: string } }) {
     const body = await request<{ data: { closed: boolean; status: string } }>(`/answer/${encodeURIComponent(token)}`, { method: 'POST', body: JSON.stringify(input) }, false);
     return body.data;
   },
@@ -1108,6 +1229,7 @@ export interface SimHealth {
 }
 export interface SimRunCounts { tasks: number; endpoints: number; schedules: number; deliveries: number; receiver_hits: number; spent_usd: number }
 export interface SimRun { run_id: string; created_at: string; last_seen_at: string; purged_at: string | null; purged: Record<string, number> | null; counts: SimRunCounts | null }
+export interface AcceptanceTask { id: string; title: string; runnable: boolean; needs: string | null; needs_skills: boolean; variants: string[]; note: string | null }
 export interface ReceiverHit { name: string; n: number; behaviour: string; idempotency_key: string | null; effect: boolean; duplicate: boolean; body: unknown; created_at: string }
 export interface ReceiverReport { hits: ReceiverHit[]; requests: number; effects: number; duplicates: number }
 
@@ -1136,6 +1258,19 @@ export const simApi = {
     return { name: d.name, mime: d.mime, bytes };
   },
 
+  /** The acceptance set (reading plan §8): the twelve tasks. */
+  async acceptance() {
+    return (await request<{ data: AcceptanceTask[] }>('/sim/acceptance')).data;
+  },
+  /** One task's fixed inputs for this run: its objective and files. */
+  async acceptancePrepare(id: string) {
+    return (await request<{ data: { id: string; title: string; objective: string; files: { name: string; mime: string; base64: string }[] } }>(`/sim/acceptance/${id}/prepare`, { method: 'POST' })).data;
+  },
+  /** Judge a run of it against what counts as correct. */
+  async acceptanceEvaluate(id: string, taskId: string) {
+    return (await request<{ data: { passed: boolean; checks: { name: string; status: 'pass' | 'fail'; detail: string }[] } }>(`/sim/acceptance/${id}/evaluate`, { method: 'POST', body: JSON.stringify({ task_id: taskId }) })).data;
+  },
+
   /** A request's private answer links — a sim opens them as the colleague would; nothing is emailed. */
   async requestLinks(requestId: string) {
     const body = await request<{ data: { assignment_id: string; to: { kind: 'person' | 'pool'; name: string }; status: string; token: string | null }[] }>(`/sim/requests/${requestId}/links`);
@@ -1146,6 +1281,19 @@ export const simApi = {
   async passDeadline(requestId: string) {
     const body = await request<{ data: { status: string } }>(`/sim/requests/${requestId}/deadline`, { method: 'POST' });
     return body.data;
+  },
+
+  /** The sim platform for this run (phase 7): its clock, its tokens, its refreshes. */
+  async platformControl(input: { advance_minutes?: number; expire_tokens?: boolean; refuse_refresh?: boolean; expires_in?: number }) {
+    return (await request<{ data: { clock_minutes: number; token_generation: number; refresh_allowed: boolean } }>('/sim/platform-control', { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  /** The owner clicks Allow (or refuses) on the sim platform's consent screen. */
+  async allowConnection(authorizeUrl: string, deny = false) {
+    return (await request<{ data: { landing: string; connected: string | null; error: string | null } }>('/sim/connections/allow', { method: 'POST', body: JSON.stringify({ authorize_url: authorizeUrl, deny }) })).data;
+  },
+  /** The sim platform sends a mention to one of this run's triggers, signed as X does. */
+  async emitMention(triggerId: string, text?: string) {
+    return (await request<{ data: { status: number; answer: { data?: { received: { outcome: string; task_id?: string }[] } } } }>('/sim/platform-emit', { method: 'POST', body: JSON.stringify({ trigger_id: triggerId, ...(text ? { text } : {}) }) })).data;
   },
 
   /** A state a click can't reach (a process that died mid-step), built inside the current run. */

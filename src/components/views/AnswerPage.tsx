@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CheckCircle2Icon, ClipboardListIcon } from 'lucide-react';
+import { CheckCircle2Icon, ClipboardListIcon, FileTextIcon, UploadIcon, XIcon } from 'lucide-react';
 import { ApiError, answerApi } from '@/lib/api';
-import type { AnswerView } from '@/lib/types';
+import type { AnswerView, SearchUpload } from '@/lib/types';
 import { RowsEditor, filledRows, startRows, visible } from '@/components/collect/RowsEditor';
 
 const box = 'w-full rounded-md border border-line bg-panel px-2.5 py-1.5 text-[13px] text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none';
@@ -23,6 +23,9 @@ export function AnswerPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<'answered' | 'declined' | null>(null);
+  const [uploads, setUploads] = useState<SearchUpload[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     answerApi.view(token).then((v) => {
@@ -39,6 +42,23 @@ export function AnswerPage() {
   const fields = [...(r.gaps ? [{ name: '_gap', type: 'number' as const }, { name: '_about', type: 'string' as const }] : []), ...r.fields];
   const filled = filledRows(rows, fields);
 
+  async function upload(list: FileList | null) {
+    if (!list || !list.length) return;
+    setUploading(true);
+    setError(null);
+    try {
+      for (const f of Array.from(list)) {
+        const done = await answerApi.upload(token, f);
+        setUploads((prev) => [...prev, done]);
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not upload that file.');
+    } finally {
+      setUploading(false);
+      if (picker.current) picker.current.value = '';
+    }
+  }
+
   async function submit(decline: boolean) {
     setBusy(true);
     setError(null);
@@ -46,6 +66,7 @@ export function AnswerPage() {
       await answerApi.send(token, decline ? { decline: true, notes: notes.trim() || undefined } : {
         ...(filled.length ? { records: filled } : {}),
         ...(text.trim() ? { text: text.trim() } : {}),
+        ...(uploads.length ? { files: uploads.map((u) => u.file) } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
       });
       setSent(decline ? 'declined' : 'answered');
@@ -88,13 +109,32 @@ export function AnswerPage() {
 
           <RowsEditor fields={fields} rows={rows} setRows={setRows} maxItems={r.max_items} gaps={r.gaps} />
           <div className="mt-3 space-y-2">
+            {uploads.map((u, i) =>
+            <div key={u.file} className="flex items-start gap-3 rounded-lg border border-line bg-panel p-3">
+                <FileTextIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-500" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-medium text-ink-900">{u.name}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[12px] text-ink-700">{u.preview}</p>
+                </div>
+                <button type="button" onClick={() => setUploads(uploads.filter((_, j) => j !== i))} aria-label={`Remove ${u.name}`} className="cursor-pointer rounded p-1 text-ink-400 hover:text-ink-900"><XIcon className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
+            {!r.gaps &&
+            <div className="flex flex-wrap items-center gap-3">
+                <button type="button" disabled={uploading} onClick={() => picker.current?.click()} className="inline-flex cursor-pointer items-center gap-1 text-[12px] font-medium text-brand-700 hover:text-brand-500 disabled:opacity-60">
+                  <UploadIcon className="h-3.5 w-3.5" /> {uploading ? 'Uploading…' : 'Upload a file'}
+                </button>
+                <span className="text-[11px] text-ink-500">A CSV with columns {r.fields.map((f) => f.name).join(', ')} becomes rows; photos, PDFs, Word and Excel files are read too.</span>
+                <input ref={picker} type="file" accept=".txt,.md,.csv,.html,.htm,.pdf,.docx,.xlsx,.png,.jpg,.jpeg,.webp" multiple hidden onChange={(e) => upload(e.target.files)} />
+              </div>
+            }
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={50000} placeholder="Or paste what you found (optional)" aria-label="Pasted text" className={`${box} resize-y`} />
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={2000} placeholder="Anything they should know (optional)" aria-label="Notes" className={`${box} resize-y`} />
           </div>
           {error && <p role="alert" className="mt-3 rounded-md border border-danger-100 bg-danger-50 px-3 py-2 text-[12px] text-danger-700">{error}</p>}
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <button type="button" disabled={busy} onClick={() => submit(true)} className="cursor-pointer rounded-md border border-line bg-panel px-3 py-2 text-[13px] font-medium text-ink-700 hover:bg-canvas disabled:opacity-60">I can’t help with this</button>
-            <button type="button" disabled={busy || (!filled.length && !text.trim())} onClick={() => submit(false)} className="cursor-pointer rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">
+            <button type="button" disabled={busy || uploading || (!filled.length && !text.trim() && !uploads.length)} onClick={() => submit(false)} className="cursor-pointer rounded-md bg-brand-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">
               {busy ? 'Sending…' : 'Send'}
             </button>
           </div>
