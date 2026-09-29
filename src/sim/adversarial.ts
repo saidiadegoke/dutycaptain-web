@@ -42,8 +42,8 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   },
   {
     id: 'cancel', variant: 'Cancel mid-run', example: 'cancel after the result was already sent',
-    correct: 'what happened is recorded (and not undoable); the rest stopped',
-    coveredBy: ['durable.cancel-records-sends'],
+    correct: 'what happened is recorded — a send cannot be undone, a post can (offered, never done by itself); the rest stopped',
+    coveredBy: ['durable.cancel-records-sends', 'publish.cancel-undo'],
   },
   {
     id: 'malformed', variant: 'Malformed source', example: 'a broken PDF',

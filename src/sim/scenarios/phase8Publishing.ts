@@ -217,4 +217,35 @@ export const postInTask: Scenario = {
   },
 };
 
-export const PUBLISHING_SCENARIOS: Scenario[] = [draftOnce, lostAnswer, rulesBlock, scheduled, autoReply, postInTask];
+export const cancelUndo: Scenario = {
+  id: 'publish.cancel-undo',
+  group: GROUP,
+  title: 'Cancel after it posted: what it did is listed, and Undo is offered — never done by itself',
+  summary: 'A task posts your approved draft, then waits for an event. You cancel it: the post is listed as something it did, which can be undone; it stays up until you choose Undo, which deletes it.',
+  exercises: 'social.post → event.wait → cancel → side effects (platform actions, reversible) → Undo (delete on the ledger)',
+  cost: ['ai'],
+  estimate: '~50s',
+  async run(ctx) {
+    await simConnection(ctx);
+    const brand = await bakery(ctx);
+    const d = await approved(ctx, brand, 'Weekend special: chin chin jars.');
+    const trig = await triggersApi.create({ name: `sim-hold-${ctx.token.toLowerCase()}`, mode: 'none' });
+    const task = await tasksApi.create(`First use social.post with draft_id ${d.id}. Then use event.wait on the trigger "${trig.name}" for a "go" event. ${simMark(ctx.token)}`, { budget: { caps: CAPS } });
+    ctx.link('Open the task', `/app/tasks/${task.id}`);
+    const waiting = await ctx.poll('the task to post and wait', () => tasksApi.get(task.id), (t) => ['waiting_for_event', 'done', 'failed', 'partial'].includes(t.status), { timeoutMs: 180_000 });
+    await tasksApi.control(task.id, 'cancel');
+    const fx = await tasksApi.sideEffects(task.id);
+    const post = fx.find((e) => e.kind === 'platform_action');
+    const stillUp = await countOf(d.text as string);
+    if (post?.compensation) await platformActionsApi.undo(post.compensation.action_id);
+    return [
+      expectEqual('It posted, then waited', 'waiting_for_event', waiting.status),
+      expectTrue('Cancel lists the post as something it did', Boolean(post), 'the post', fx),
+      expectTrue('…which can be undone', Boolean(post?.reversible && post.compensation), 'Undo offered', post),
+      expectEqual('Nothing undone by itself', 1, stillUp),
+      expectEqual('Undo deletes it', 0, await countOf(d.text as string)),
+    ];
+  },
+};
+
+export const PUBLISHING_SCENARIOS: Scenario[] = [draftOnce, lostAnswer, rulesBlock, scheduled, autoReply, postInTask, cancelUndo];

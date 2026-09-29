@@ -98,4 +98,27 @@ export const retryCarries: Scenario = {
   },
 };
 
-export const CONTENT_SCENARIOS = [deepListingFound, searchReuses, retryCarries];
+export const meaningSearch: Scenario = {
+  id: 'content.meaning',
+  group: GROUP,
+  title: 'Search by meaning: "the price" finds "the consultation fee"',
+  summary: 'A note is attached with a clinic\'s fee and a weather line. Searching the task\'s content for "how much is the price" finds the fee — no word in common — and not the weather. Runs only where CONTENT_SEARCH_MEANING is on (embeddings cost a call).',
+  exercises: 'addAttachment → passages → GET /tasks/:id/content/search → embed (once per passage) → terms × 0.6 + closeness × 0.4',
+  cost: ['ai'],
+  estimate: '~5s',
+  skipIf: (ctx: RunContext) => (ctx.health.content_meaning ? undefined : 'CONTENT_SEARCH_MEANING is off on this deployment'),
+  async run(ctx) {
+    const task = await tasksApi.create(`Read the attached note ${simMark(ctx.token)}`, { start: false });
+    ctx.link('Open the task', `/app/tasks/${task.id}`);
+    const note = `Clinic notes ${ctx.token}\n\nThe consultation fee is 15,000 naira for a first visit.\n\nHeavy rain is expected in Lagos tonight.`;
+    await tasksApi.addAttachment(task.id, new File([note], `note-${ctx.token.toLowerCase()}.txt`, { type: 'text/plain' }));
+    const found = await tasksApi.searchContent(task.id, 'how much is the price');
+    await tasksApi.control(task.id, 'cancel');
+    return [
+      expectEqual('Ranked by terms and meaning', 'terms and meaning', found.ranked_by),
+      expectTrue('The fee is found for "price"', found.passages.some((p) => /consultation fee/.test(p.text)), 'the fee', found.passages.map((p) => p.text.slice(0, 60))),
+    ];
+  },
+};
+
+export const CONTENT_SCENARIOS = [deepListingFound, searchReuses, retryCarries, meaningSearch];

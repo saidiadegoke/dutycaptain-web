@@ -178,4 +178,25 @@ export const brokenWorkbook: Scenario = {
   },
 };
 
-export const SKILL_SCENARIOS = [workbookRead, wordRead, receiptOcr, brokenWorkbook, reconcileInTask, summarizeReport];
+export const oldWorkbookRead: Scenario = {
+  id: 'skills.old-xls-read',
+  group: GROUP,
+  title: 'An old Excel 97–2003 .xls is read like any workbook',
+  summary: 'A ledger saved as .xls is attached. It is read by the spreadsheet skill (xlrd, in the skills image): three lines with their dates and amounts, ₦245,500 in all.',
+  exercises: 'addAttachment → route.readerFor(.xls) → read_xlsx.py (xlrd) → source passages',
+  cost: ['free'],
+  estimate: '~6s',
+  skipIf: noSkills,
+  async run(ctx) {
+    const { task, attachment } = await attachSample(ctx, 'Check the attached ledger', { kind: 'xls' }, `ledger-${ctx.token.toLowerCase()}.xls`);
+    const checks = [
+      expectEqual('Read by the spreadsheet skill', 'read.xlsx', attachment.read_by),
+      expectTrue('Its lines were read, amounts and dates kept', Boolean(attachment.preview?.includes('185000') && attachment.preview?.includes('2026-09-01')), 'Flour 185000 on 2026-09-01', attachment.preview),
+      expectTrue('…and a gas refill of 18000', Boolean(attachment.preview?.includes('18000')), '18000', attachment.preview),
+    ];
+    await tasksApi.control(task.id, 'cancel');
+    return checks;
+  },
+};
+
+export const SKILL_SCENARIOS = [workbookRead, oldWorkbookRead, wordRead, receiptOcr, brokenWorkbook, reconcileInTask, summarizeReport];

@@ -360,7 +360,27 @@ export const adminApi = {
 
 // --- tasks -----------------------------------------------------------------
 
+export interface SideEffect {
+  kind: string;
+  what: string;
+  status: string;
+  at: string | null;
+  url?: string | null;
+  reversible: boolean;
+  undone?: boolean;
+  action_id?: string;
+  compensation?: { label: string; action: 'undo_post'; action_id: string };
+}
+
 export const tasksApi = {
+  /** Search what the task has read: ranked passages. */
+  async searchContent(id: string, q: string) {
+    return (await request<{ data: { total: number; ranked_by?: string; passages: { passage_id: string; locator: string; title: string | null; text: string; score: number; closeness?: number }[] } }>(`/tasks/${id}/content/search?q=${encodeURIComponent(q)}`)).data;
+  },
+  /** What the task did outside, and what can be undone (§6.18). */
+  async sideEffects(id: string) {
+    return (await request<{ data: SideEffect[] }>(`/tasks/${id}/side-effects`)).data;
+  },
   async list(params: { status?: string; page?: number; limit?: number } = {}) {
     const q = new URLSearchParams();
     if (params.status) q.set('status', params.status);
@@ -1251,6 +1271,7 @@ export interface SimHealth {
   retain_hours: number;
   receiver_slow_ms: number;
   skills?: { available: boolean; mode: 'docker' | 'cloudflare'; image: string };
+  content_meaning?: boolean;
   server_time: string;
 }
 export interface SimRunCounts { tasks: number; endpoints: number; schedules: number; deliveries: number; receiver_hits: number; spent_usd: number }
@@ -1276,7 +1297,7 @@ export const simApi = {
     return (await request<{ data: Record<string, number> }>(`/sim/runs/${runId}`, { method: 'DELETE' })).data;
   },
   /** A sample file (workbook, Word document, receipt photo) with chosen content, made by the skills image. */
-  async sample(input: { kind: 'xlsx' | 'docx' | 'receipt'; rows?: Record<string, unknown>[]; markdown?: string; text?: string; degrade?: boolean }) {
+  async sample(input: { kind: 'xlsx' | 'docx' | 'receipt' | 'xls'; rows?: Record<string, unknown>[]; markdown?: string; text?: string; degrade?: boolean }) {
     const d = (await request<{ data: { name: string; mime: string; base64: string } }>('/sim/samples', { method: 'POST', body: JSON.stringify(input) })).data;
     const bin = atob(d.base64);
     const bytes = new Uint8Array(bin.length);

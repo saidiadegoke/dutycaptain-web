@@ -368,6 +368,8 @@ export function TaskDetail() {
 
               <EventWaits events={events} onChanged={() => load(true)} />
 
+              {task.status === 'cancelled' && <WhatItDid taskId={task.id} />}
+
               <PublicActions taskId={task.id} seq={lastSeq} />
 
               <TaskSources taskId={task.id} />
@@ -685,6 +687,38 @@ function PublicActions({ taskId, seq }: { taskId: string; seq: number }) {
             {a.status === 'succeeded' && a.kind !== 'delete' && !a.undone_by &&
           <button type="button" onClick={() => platformActionsApi.undo(a.id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : 'Could not undo.'))}
             className="mt-1 cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-canvas">Undo — delete it</button>}
+          </li>
+        )}
+      </ul>
+    </section>);
+}
+
+/**
+ * A cancelled task: what it had already done outside before it stopped, and —
+ * for what can be undone — the choice to undo it. Nothing is undone by itself.
+ */
+function WhatItDid({ taskId }: { taskId: string }) {
+  const [list, setList] = useState<Awaited<ReturnType<typeof tasksApi.sideEffects>>>([]);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => tasksApi.sideEffects(taskId).then(setList).catch(() => {}), [taskId]);
+  useEffect(() => { load(); }, [load]);
+  if (!list.length) return null;
+  return (
+    <section className="rounded-xl border border-warn-100 bg-warn-50 px-5 py-4">
+      <h2 className="text-[12px] font-semibold text-warn-700">What it did before it stopped</h2>
+      <p className="mt-0.5 text-[12px] text-ink-600">Cancelling stopped what came next, not what had already happened. Nothing is undone unless you choose.</p>
+      {error && <p role="alert" className="mt-1 text-[12px] text-danger-700">{error}</p>}
+      <ul className="mt-2 space-y-1.5">
+        {list.map((e, i) =>
+        <li key={`${e.kind}-${e.action_id || i}`} className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-ink-800">
+            <span>
+              {e.what}
+              {e.url && <> · <a href={e.url} target="_blank" rel="noreferrer" className="text-brand-700 hover:text-brand-500">see it</a></>}
+              <span className="text-ink-500"> · {e.undone ? 'undone' : e.status === 'happened' ? (e.reversible ? 'can be undone' : 'cannot be undone') : 'not known — check'}</span>
+            </span>
+            {e.compensation && !e.undone &&
+          <button type="button" onClick={() => platformActionsApi.undo(e.compensation!.action_id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : 'Could not undo.'))}
+            className="cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-canvas">{e.compensation.label}</button>}
           </li>
         )}
       </ul>
