@@ -30,7 +30,7 @@ import type {
   Approval, ApprovalGrant, AuditTrailResponse, CostRollup, Device, DeviceEnrolment,
   ApiKey, DeviceGrant, NotificationPreferences, Pagination, PendingEnrolment, PlanHistory, SearchRequest, SearchSettings, SearchUpload, ArtifactRow, RuntimeStatus, Delivery, Endpoint, EndpointInput, SendResult, InputRequest, Schedule, Capability, PersonSites, Step, TaskAttachment, SessionUser, Task, TaskBudget,
   TaskDetail, TaskListItem, TaskStateResponse, TimelineEvent, TaskSource, OutputContract, ValueProvenance,
-  Connection, PlatformInfo, Watch, WatchDetail, Trigger, TriggerDetail, Brand, Draft, DraftChecks,
+  Connection, PlatformInfo, Watch, WatchDetail, Trigger, TriggerDetail, Brand, Draft, DraftChecks, PlatformAction,
 } from './types';
 
 const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
@@ -899,6 +899,32 @@ export const draftsApi = {
   async decide(id: string, action: 'approve' | 'reject' | 'edit', text?: string) {
     return (await request<{ data: Draft }>(`/drafts/${id}/decide`, { method: 'POST', body: JSON.stringify({ action, ...(text !== undefined ? { text } : {}) }) })).data;
   },
+  /** A post you write yourself, checked against the brand. */
+  async create(input: { text: string; platform?: string; brand_id?: string; planned_for?: string; kind?: 'post' | 'reply'; in_reply_to?: string }) {
+    return (await request<{ data: Draft }>('/drafts', { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  /** An approved draft goes out at its planned time (or `at`, or now) — exactly once. */
+  async publish(id: string, input: { connection_id?: string; at?: string } = {}) {
+    return (await request<{ data: Draft }>(`/drafts/${id}/publish`, { method: 'POST', body: JSON.stringify(input) })).data;
+  },
+  async unpublish(id: string) {
+    await request(`/drafts/${id}/unpublish`, { method: 'POST' });
+  },
+};
+
+/** What was posted, replied or deleted (phase 8): the ledger. */
+export const platformActionsApi = {
+  async list(taskId?: string) {
+    return (await request<{ data: PlatformAction[] }>(`/platform-actions${taskId ? `?task_id=${taskId}` : ''}`)).data;
+  },
+  /** Delete a post that went out — your choice, never automatic. */
+  async undo(id: string) {
+    return (await request<{ data: { action: PlatformAction; undo: PlatformAction } }>(`/platform-actions/${id}/undo`, { method: 'POST' })).data;
+  },
+  /** A post whose answer was lost: did it go out? */
+  async confirm(id: string, happened: boolean, reference?: string) {
+    return (await request<{ data: PlatformAction }>(`/platform-actions/${id}/confirm`, { method: 'POST', body: JSON.stringify({ happened, ...(reference ? { reference } : {}) }) })).data;
+  },
 };
 
 /** The private answer link — public: a colleague has no account (phase 6). */
@@ -1284,7 +1310,11 @@ export const simApi = {
   },
 
   /** The sim platform for this run (phase 7): its clock, its tokens, its refreshes. */
-  async platformControl(input: { advance_minutes?: number; expire_tokens?: boolean; refuse_refresh?: boolean; expires_in?: number }) {
+  /** What the run's sim account has posted — to check "exactly once". */
+  async platformPosts() {
+    return (await request<{ data: { id: string; text: string; in_reply_to?: string }[] }>('/sim/platform-posts')).data;
+  },
+  async platformControl(input: { advance_minutes?: number; expire_tokens?: boolean; refuse_refresh?: boolean; expires_in?: number; post_mode?: 'ok' | 'drop' | 'lost' | 'refuse' }) {
     return (await request<{ data: { clock_minutes: number; token_generation: number; refresh_allowed: boolean } }>('/sim/platform-control', { method: 'POST', body: JSON.stringify(input) })).data;
   },
   /** The owner clicks Allow (or refuses) on the sim platform's consent screen. */

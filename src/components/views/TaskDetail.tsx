@@ -40,9 +40,9 @@ import { AskForGaps } from '@/components/task/AskForGaps';
 import { PlanReview } from '@/components/task/PlanReview';
 import { ContractCard } from '@/components/task/ContractCard';
 import { StepDetail, StepIcon, duration } from '@/components/task/StepParts';
-import { endpointsApi, tasksApi, triggersApi, ApiError } from '@/lib/api';
+import { endpointsApi, platformActionsApi, tasksApi, triggersApi, ApiError } from '@/lib/api';
 import { useTaskTimeline } from '@/lib/useTaskTimeline';
-import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType, TimelineEvent } from '@/lib/types';
+import type { Delivery, InputRequest, Observation, SearchRequest, Step, TaskDetail as TaskDetailType, TimelineEvent, PlatformAction } from '@/lib/types';
 import { isActive, isSuspended, isTerminal } from '@/lib/types';
 import { ago, bytes } from '@/utils/format';
 
@@ -368,6 +368,8 @@ export function TaskDetail() {
 
               <EventWaits events={events} onChanged={() => load(true)} />
 
+              <PublicActions taskId={task.id} seq={lastSeq} />
+
               <TaskSources taskId={task.id} />
 
               {/* What was asked, in full — formatting and the files it came with. */}
@@ -647,6 +649,44 @@ function EventWaits({ events, onChanged }: { events: TimelineEvent[]; onChanged:
                 </button>}
             </li>);
         })}
+      </ul>
+    </section>);
+}
+
+const ACTION_STATUS: Record<PlatformAction['status'], string> = {
+  pending: 'not sent yet', submitting: 'sending…', succeeded: 'done', failed: 'refused', unknown: 'no answer — checking', asked: 'waiting for you to say whether it went out',
+};
+
+/**
+ * What the task did in public (phase 8): each post, reply or delete, as the
+ * ledger records it — who decided, the link, whether it read back — and Undo
+ * for a post, which is offered and never done by itself.
+ */
+function PublicActions({ taskId, seq }: { taskId: string; seq: number }) {
+  const [list, setList] = useState<PlatformAction[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => platformActionsApi.list(taskId).then(setList).catch(() => {}), [taskId]);
+  useEffect(() => { load(); }, [load, seq]);
+  if (!list.length) return null;
+  return (
+    <section className="rounded-xl border border-line bg-panel px-5 py-4 shadow-panel">
+      <h2 className="text-[12px] font-semibold text-ink-700">What it did in public</h2>
+      {error && <p role="alert" className="mt-1 text-[12px] text-danger-700">{error}</p>}
+      <ul className="mt-2 space-y-2">
+        {list.map((a) =>
+        <li key={a.id} className="text-[13px] text-ink-800">
+            <span className="font-medium">{a.kind === 'reply' ? 'Replied' : a.kind === 'delete' ? 'Deleted' : 'Posted'}</span>
+            <span className={a.status === 'succeeded' ? 'text-ok-700' : a.status === 'failed' ? 'text-danger-700' : 'text-warn-700'}> · {ACTION_STATUS[a.status]}</span>
+            {a.url && <> · <a href={a.url} target="_blank" rel="noreferrer" className="text-brand-700 hover:text-brand-500">see it</a></>}
+            {a.verified?.matches && <span className="text-ink-500"> · read back, it matches</span>}
+            {a.undone_by && <span className="text-ink-500"> · undone</span>}
+            {a.request.text && <p className="mt-0.5 whitespace-pre-wrap text-[12px] text-ink-600">“{a.request.text}”</p>}
+            <p className="text-[12px] text-ink-500">{a.authorised_by ? `Authorised by ${a.authorised_by}` : ''}{a.error && a.status !== 'succeeded' ? ` · ${a.error}` : ''}</p>
+            {a.status === 'succeeded' && a.kind !== 'delete' && !a.undone_by &&
+          <button type="button" onClick={() => platformActionsApi.undo(a.id).then(load).catch((err) => setError(err instanceof ApiError ? err.message : 'Could not undo.'))}
+            className="mt-1 cursor-pointer rounded-md border border-line bg-panel px-2.5 py-1 text-[12px] font-medium text-ink-700 hover:bg-canvas">Undo — delete it</button>}
+          </li>
+        )}
       </ul>
     </section>);
 }

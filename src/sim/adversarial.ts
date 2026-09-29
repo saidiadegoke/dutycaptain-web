@@ -28,12 +28,12 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   {
     id: 'timeout', variant: 'Timeout / lost answer', example: 'the endpoint acts but its answer never arrives',
     correct: 'unknown → settled by a safe repeat or a person; never sent twice',
-    coveredBy: ['ledger.unknown-person-yes', 'ledger.unknown-person-no', 'ledger.honours-repeat', 'ledger.honours-unreachable'],
+    coveredBy: ['ledger.unknown-person-yes', 'ledger.unknown-person-no', 'ledger.honours-repeat', 'ledger.honours-unreachable', 'publish.lost-answer'],
   },
   {
     id: 'duplicate-send', variant: 'Duplicate action', example: 'a step with a send runs again (retry, restart, resume)',
     correct: 'the send happens once; a rerun reuses it',
-    coveredBy: ['ledger.send-once', 'ledger.definite-failure', 'durable.send-cut-off'],
+    coveredBy: ['ledger.send-once', 'ledger.definite-failure', 'durable.send-cut-off', 'publish.once', 'publish.in-task'],
   },
   {
     id: 'crash', variant: 'Server stops mid-step', example: 'a deploy or crash while a step is running',

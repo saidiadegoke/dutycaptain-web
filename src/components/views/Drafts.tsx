@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangleIcon, CheckCircle2Icon, MessageCircleWarningIcon, XIcon } from 'lucide-react';
 import { Panel } from '@/components/Panel';
-import { ApiError, brandsApi, draftsApi } from '@/lib/api';
-import type { Brand, Draft } from '@/lib/types';
+import { ApiError, brandsApi, draftsApi, platformActionsApi } from '@/lib/api';
+import type { Brand, Draft, PlatformAction } from '@/lib/types';
 import { ago } from '@/utils/format';
 
 /**
@@ -44,7 +44,8 @@ function DraftsPanel({ brands }: { brands: Brand[] }) {
   useEffect(() => { setList(null); load(); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Panel title="Drafts" description="Checked against the brand in code. Approve, edit or reject — nothing is posted from here.">
+    <Panel title="Drafts" description="Checked against the brand in code. Approve, edit or reject; an approved draft is posted only when you choose Publish — once.">
+      <Compose brands={brands} onSaved={() => { setTab('draft'); load(); }} />
       <div className="mb-3 flex gap-1">
         {TABS.map((t) =>
         <button key={t.id} type="button" onClick={() => setTab(t.id)}
@@ -108,6 +109,7 @@ function DraftCard({ draft, brand, onChanged }: { draft: Draft; brand: Brand | n
         {limit && <span className={`${[...text].length > limit ? 'text-danger-700' : 'text-ink-500'}`}>{[...text].length}/{limit}</span>}
       </div>
       {error && <p role="alert" className="mt-1 text-[12px] text-danger-700">{error}</p>}
+      {draft.status === 'approved' && <PublishControls draft={draft} onChanged={onChanged} />}
       {draft.status === 'draft' &&
       <div className="mt-2 flex flex-wrap gap-2">
           <button type="button" disabled={busy || !text.trim()} onClick={() => decide('approve')} className="cursor-pointer rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">{edited ? 'Approve my edit' : 'Approve'}</button>
@@ -146,6 +148,11 @@ function BrandForm({ brand, onDone }: { brand: Brand | null; onDone: () => void 
   const [facts, setFacts] = useState((brand?.facts || []).map((f) => `${f.name}: ${f.value}`).join('\n'));
   const [neverSay, setNeverSay] = useState((brand?.never_say || []).join('\n'));
   const [hashtags, setHashtags] = useState((brand?.hashtags || []).join(' '));
+  const [autoReply, setAutoReply] = useState(Boolean(brand?.reply_rules?.auto));
+  const [maxPerHour, setMaxPerHour] = useState(String(brand?.reply_rules?.max_per_hour || 5));
+  const [from, setFrom] = useState(brand?.reply_rules?.hours?.from || '08:00');
+  const [to, setTo] = useState(brand?.reply_rules?.hours?.to || '20:00');
+  const [mentions, setMentions] = useState((brand?.allowed_mentions || []).map((m) => `@${m}`).join(' '));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -158,6 +165,8 @@ function BrandForm({ brand, onDone }: { brand: Brand | null; onDone: () => void 
       facts: lines(facts).map((l) => { const i = l.indexOf(':'); return i > 0 ? { name: l.slice(0, i).trim(), value: l.slice(i + 1).trim() } : { name: l, value: '' }; }),
       never_say: lines(neverSay),
       hashtags: hashtags.split(/\s+/).filter(Boolean),
+      reply_rules: { auto: autoReply, facts_only: true, max_per_hour: Number(maxPerHour) || 5, hours: { from, to, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos' } },
+      allowed_mentions: mentions.split(/[\s,]+/).filter(Boolean),
     };
     try {
       if (brand) await brandsApi.update(brand.id, input); else await brandsApi.create(input);
@@ -177,10 +186,107 @@ function BrandForm({ brand, onDone }: { brand: Brand | null; onDone: () => void 
       <textarea value={facts} onChange={(e) => setFacts(e.target.value)} rows={4} placeholder={'Facts, one per line as name: value\nmeat pie: ₦1,500\nopening hours: 7am to 8pm, Monday to Saturday'} aria-label="Facts" className={`${field} font-mono`} />
       <textarea value={neverSay} onChange={(e) => setNeverSay(e.target.value)} rows={2} placeholder={'Never say, one per line\ncheapest in Lagos'} aria-label="Never say" className={field} />
       <input value={hashtags} onChange={(e) => setHashtags(e.target.value)} placeholder="#hashtags it uses" aria-label="Hashtags" className={field} />
+      <input value={mentions} onChange={(e) => setMentions(e.target.value)} placeholder="@accounts a post may name without asking you" aria-label="Allowed mentions" className={field} />
+      <fieldset className="rounded-md border border-line bg-panel px-3 py-2 text-[12px] text-ink-800">
+        <label className="flex items-center gap-2 font-medium">
+          <input type="checkbox" checked={autoReply} onChange={(e) => setAutoReply(e.target.checked)} /> Reply to comments automatically
+        </label>
+        <p className="mt-1 text-ink-500">Only replies that pass every check — the brand&apos;s own prices and times, nobody else named, not marked for you — within these hours and this many an hour. Anything else waits for you.</p>
+        {autoReply &&
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span>From</span><input type="time" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="From" className="rounded border border-line px-1.5 py-1" />
+          <span>to</span><input type="time" value={to} onChange={(e) => setTo(e.target.value)} aria-label="To" className="rounded border border-line px-1.5 py-1" />
+          <span>at most</span><input type="number" min={1} max={60} value={maxPerHour} onChange={(e) => setMaxPerHour(e.target.value)} aria-label="Most per hour" className="w-16 rounded border border-line px-1.5 py-1" /><span>an hour</span>
+        </div>}
+      </fieldset>
       {error && <p role="alert" className="text-[12px] text-danger-700">{error}</p>}
       <div className="flex gap-2">
         <button type="button" disabled={busy || !name.trim()} onClick={save} className="cursor-pointer rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">Save</button>
         <button type="button" onClick={onDone} className="cursor-pointer rounded-md border border-line bg-panel px-3 py-1.5 text-[12px] font-medium text-ink-700 hover:bg-canvas">Cancel</button>
+      </div>
+    </div>);
+}
+
+/** A post you write yourself: checked against the brand like any draft. */
+function Compose({ brands, onSaved }: { brands: Brand[]; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [brandId, setBrandId] = useState('');
+  const [when, setWhen] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  if (!open) return <button type="button" onClick={() => setOpen(true)} className="mb-3 cursor-pointer text-[12px] font-medium text-brand-700 hover:text-brand-500">+ Write a post yourself</button>;
+  return (
+    <div className="mb-4 space-y-2 rounded-md border border-line bg-canvas p-3">
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} aria-label="Your post" placeholder="What to post" className="w-full rounded-md border border-line bg-panel px-3 py-2 text-[13px] text-ink-900" />
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={brandId} onChange={(e) => setBrandId(e.target.value)} aria-label="Brand" className="rounded-md border border-line bg-panel px-2 py-1.5 text-[12px]">
+          <option value="">{brands.length === 1 ? brands[0].name : 'No brand'}</option>
+          {brands.length > 1 && brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="When to post it (optional)" className="rounded-md border border-line bg-panel px-2 py-1.5 text-[12px]" />
+        <span className="text-[12px] text-ink-500">{[...text].length}/280</span>
+      </div>
+      {error && <p role="alert" className="text-[12px] text-danger-700">{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" disabled={!text.trim()} onClick={async () => {
+          setError(null);
+          try {
+            await draftsApi.create({ text, ...(brandId ? { brand_id: brandId } : {}), ...(when ? { planned_for: new Date(when).toISOString() } : {}) });
+            setText(''); setWhen(''); setOpen(false); onSaved();
+          } catch (err) { setError(err instanceof ApiError ? err.message : 'Could not save.'); }
+        }} className="cursor-pointer rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">Save as a draft</button>
+        <button type="button" onClick={() => setOpen(false)} className="cursor-pointer rounded-md border border-line bg-panel px-3 py-1.5 text-[12px] font-medium text-ink-700 hover:bg-canvas">Cancel</button>
+      </div>
+    </div>);
+}
+
+const PUBLISH_LABEL: Record<string, string> = {
+  queued: 'Queued', publishing: 'Posting…', published: 'Published', failed: 'Not posted', unknown: 'Did it go out? Check', cancelled: 'Taken off the queue',
+};
+
+/**
+ * Publishing an approved draft: now, or at its planned time — exactly once.
+ * After: the post's link and Undo. A post whose answer was lost: you say
+ * whether it went out; it is never posted again blind.
+ */
+function PublishControls({ draft, onChanged }: { draft: Draft; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [action, setAction] = useState<PlatformAction | null>(null);
+  useEffect(() => {
+    if (!draft.action_id) return;
+    platformActionsApi.list().then((all) => setAction(all.find((a) => a.id === draft.action_id) || null)).catch(() => {});
+  }, [draft.action_id, draft.publish_status]);
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    setError(null);
+    try { await fn(); onChanged(); } catch (err) { setError(err instanceof ApiError ? err.message : 'That did not work.'); } finally { setBusy(false); }
+  }
+  const btn = 'cursor-pointer rounded-md border border-line bg-panel px-3 py-1.5 text-[12px] font-medium text-ink-700 hover:bg-canvas disabled:opacity-60';
+  const future = draft.planned_for && new Date(draft.planned_for) > new Date();
+  const s = draft.publish_status;
+  return (
+    <div className="mt-2 text-[12px]">
+      {s && <p className={`font-medium ${s === 'published' ? 'text-ok-700' : s === 'failed' || s === 'unknown' ? 'text-danger-700' : 'text-ink-600'}`}>
+        {PUBLISH_LABEL[s]}{s === 'queued' && draft.planned_for ? ` for ${new Date(draft.planned_for).toLocaleString()}` : ''}
+        {action?.url && <> · <a href={action.url} target="_blank" rel="noreferrer" className="text-brand-700 hover:text-brand-500">see it</a></>}
+        {action?.verified?.matches && <span className="text-ink-500"> · read back, it matches</span>}
+        {action?.undone_by && <span className="text-ink-500"> · undone</span>}
+      </p>}
+      {action?.error && s !== 'published' && <p className="text-ink-500">{action.error}</p>}
+      {error && <p role="alert" className="text-danger-700">{error}</p>}
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {(!s || s === 'cancelled' || s === 'failed') && <>
+          <button type="button" disabled={busy} onClick={() => run(() => draftsApi.publish(draft.id))} className="cursor-pointer rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-brand-500 disabled:opacity-60">Publish now</button>
+          {future && <button type="button" disabled={busy} onClick={() => run(() => draftsApi.publish(draft.id, { at: draft.planned_for as string }))} className={btn}>Publish at {new Date(draft.planned_for as string).toLocaleString()}</button>}
+        </>}
+        {s === 'queued' && <button type="button" disabled={busy} onClick={() => run(() => draftsApi.unpublish(draft.id))} className={btn}>Take off the queue</button>}
+        {s === 'published' && action && !action.undone_by && <button type="button" disabled={busy} onClick={() => run(() => platformActionsApi.undo(action.id))} className={btn}>Undo — delete the post</button>}
+        {s === 'unknown' && action && <>
+          <button type="button" disabled={busy} onClick={() => run(() => platformActionsApi.confirm(action.id, true))} className={btn}>It went out</button>
+          <button type="button" disabled={busy} onClick={() => run(() => platformActionsApi.confirm(action.id, false))} className={btn}>It didn&apos;t — post it once</button>
+        </>}
       </div>
     </div>);
 }

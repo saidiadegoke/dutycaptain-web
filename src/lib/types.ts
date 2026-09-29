@@ -963,7 +963,30 @@ export interface Brand {
   never_say: string[];
   hashtags: string[];
   examples: string[];
+  /** Automatic replies (phase 8): off unless auto is true. */
+  reply_rules: { auto: boolean; facts_only?: boolean; max_per_hour?: number; hours?: { from: string; to: string; timezone: string } };
+  /** Handles a post may name without you deciding. */
+  allowed_mentions: string[];
   updated_at: string;
+}
+
+/** A post, reply or delete on a platform — the ledger row (phase 8). */
+export interface PlatformAction {
+  id: string;
+  task_id: string | null;
+  step_id: string | null;
+  draft_id: string | null;
+  platform: string;
+  kind: 'post' | 'reply' | 'delete';
+  request: { text?: string; in_reply_to?: string; target_id?: string };
+  status: 'pending' | 'submitting' | 'succeeded' | 'failed' | 'unknown' | 'asked';
+  external_id: string | null;
+  url: string | null;
+  verified: { at: string; matches: boolean | null; reconciled?: boolean; by_person?: boolean } | null;
+  error: string | null;
+  authorised_by: string | null;
+  undone_by: string | null;
+  created_at: string;
 }
 
 export interface DraftChecks {
@@ -989,5 +1012,8 @@ export interface Draft {
   checks: DraftChecks;
   status: 'draft' | 'approved' | 'rejected';
   decided_at: string | null;
+  publish_status: 'queued' | 'publishing' | 'published' | 'failed' | 'unknown' | 'cancelled' | null;
+  publish_connection_id: string | null;
+  action_id: string | null;
   created_at: string;
 }
