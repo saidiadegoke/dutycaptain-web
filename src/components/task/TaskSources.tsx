@@ -48,6 +48,7 @@ export function TaskSources({ taskId }: {taskId: string;}) {
                     <span className="break-all">{s.title || s.locator}</span>
                   </p>
                   {s.title && s.kind !== 'person' && <p className="break-all font-mono text-[11px] text-ink-400">{s.locator}</p>}
+                  {s.carried_from && <p className="text-[11px] text-ink-500">Carried over from the earlier attempt — reused, not fetched again.</p>}
                   {s.signals && s.signals.length > 0 &&
             <p className="mt-0.5 text-[11px] text-warn-700">
                       Tried to give orders — read as data, not obeyed: {s.signals.map((x) => `“${x.excerpt}”`).join(' · ')}
@@ -56,7 +57,7 @@ export function TaskSources({ taskId }: {taskId: string;}) {
                   <ul className="mt-1 space-y-0.5 pl-1">
                     {s.versions.map((v) =>
               <li key={v.id} className="font-mono text-[11px] text-ink-500" title={v.hash}>
-                        v{v.version} · {v.hash.slice(0, 12)} · {v.bytes.toLocaleString()} bytes · {ago(v.retrieved_at)}
+                        v{v.version} · {v.hash.slice(0, 12)} · {v.bytes.toLocaleString()} bytes{v.passages ? ` · ${v.passages} passage${v.passages === 1 ? '' : 's'}` : ''} · {ago(v.retrieved_at)}
                         {!v.kept && <span className="text-ink-400"> · content deleted (retention), hash kept</span>}
                       </li>
               )}

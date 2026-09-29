@@ -722,7 +722,9 @@ export interface TaskSource {
   created_at: string;
   /** Text in it that reads like orders to an AI (migration 061). */
   signals?: { signal: string; excerpt: string }[] | null;
-  versions: { id: string; version: number; hash: string; bytes: number; retrieved_at: string; step_id: string | null; kept: boolean }[];
+  versions: { id: string; version: number; hash: string; bytes: number; retrieved_at: string; step_id: string | null; kept: boolean; passages?: number }[];
+  /** Carried over from an earlier attempt's source (phase 2: reused, not fetched again). */
+  carried_from?: string | null;
 }
 
 /** The output contract (phase 1): what a task must hand back. */

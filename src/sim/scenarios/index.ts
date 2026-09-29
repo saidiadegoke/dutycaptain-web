@@ -6,6 +6,7 @@ import { PROVENANCE_SCENARIOS } from './phase0Provenance';
 import { TRUST_SCENARIOS } from './phase0Trust';
 import { BUDGET_SCENARIOS } from './phase0Budget';
 import { OUTCOME_SCENARIOS } from './phase1Outcomes';
+import { CONTENT_SCENARIOS } from './phase2Content';
 
 /**
  * Every sim, in order. THE RULE: a feature ships with its sim — add it here in
@@ -30,5 +31,5 @@ const environment: Scenario = {
   },
 };
 
-export const SCENARIOS: Scenario[] = [environment, ...LEDGER_SCENARIOS, ...DURABLE_SCENARIOS, ...PROVENANCE_SCENARIOS, ...TRUST_SCENARIOS, ...BUDGET_SCENARIOS, ...OUTCOME_SCENARIOS];
+export const SCENARIOS: Scenario[] = [environment, ...LEDGER_SCENARIOS, ...DURABLE_SCENARIOS, ...PROVENANCE_SCENARIOS, ...TRUST_SCENARIOS, ...BUDGET_SCENARIOS, ...OUTCOME_SCENARIOS, ...CONTENT_SCENARIOS];
 export const GROUPS = Array.from(new Set(SCENARIOS.map((s) => s.group)));

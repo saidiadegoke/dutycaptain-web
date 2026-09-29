@@ -53,7 +53,7 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   {
     id: 'huge', variant: 'Huge source', example: '10× the expected size',
     correct: 'read in pieces, or stopped at a budget cap with counts; never cut silently',
-    coveredBy: ['budget.web-request-cap', 'budget.model-call-cap'], planned: 'Phase 2 — the content store reads in pieces',
+    coveredBy: ['content.deep-listing', 'budget.web-request-cap', 'budget.model-call-cap'], planned: 'Phase 3 — extraction piece by piece (map, then merge) for sources too big to rank into one read',
   },
   {
     id: 'missing', variant: 'Missing data', example: '2 of 60 invoices unreadable',
