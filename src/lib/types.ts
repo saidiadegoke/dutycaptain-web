@@ -702,6 +702,9 @@ export interface TaskAttachment {
   sensitive?: boolean;
   /** No text could be read from it (a broken file), and why. */
   unreadable?: string;
+  /** The skill that read it, and why that one (phase 4: chosen by its type). */
+  read_by?: string;
+  read_reason?: string;
 }
 
 /** A registered source version: what a value's provenance points at. */

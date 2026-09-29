@@ -376,6 +376,10 @@ export function TaskDetail() {
                             <PaperclipIcon className="h-3.5 w-3.5 text-ink-500" strokeWidth={2} />
                             {a.name}
                             <span className="text-ink-400">{bytes(a.bytes)}</span>
+                            {/* Which skill read it (phase 4), or why nothing could. */}
+                            {a.read_by && <span className="rounded bg-panel px-1 font-mono text-[10px] text-ink-500" title={a.read_reason || ''}>{a.read_by}</span>}
+                            {a.unreadable && <span className="text-[11px] text-warn-700" title={a.unreadable}>unreadable</span>}
+                            {a.sensitive && <span className="text-[11px] text-warn-700">sensitive</span>}
                           </button>
                         </li>
                 )}

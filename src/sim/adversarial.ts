@@ -48,7 +48,7 @@ export const ADVERSARIAL: AdversarialVariant[] = [
   {
     id: 'malformed', variant: 'Malformed source', example: 'a broken PDF',
     correct: 'that source marked unreadable with the reason; the rest continue',
-    coveredBy: ['adversarial.malformed-file'],
+    coveredBy: ['adversarial.malformed-file', 'skills.broken-workbook'],
   },
   {
     id: 'huge', variant: 'Huge source', example: '10× the expected size',

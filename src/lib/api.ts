@@ -1055,6 +1055,7 @@ export interface SimHealth {
   ai: { provider?: string; model?: string; providers?: string[] } | null;
   retain_hours: number;
   receiver_slow_ms: number;
+  skills?: { available: boolean; mode: 'docker' | 'cloudflare'; image: string };
   server_time: string;
 }
 export interface SimRunCounts { tasks: number; endpoints: number; schedules: number; deliveries: number; receiver_hits: number; spent_usd: number }
@@ -1078,6 +1079,15 @@ export const simApi = {
   async purge(runId: string) {
     return (await request<{ data: Record<string, number> }>(`/sim/runs/${runId}`, { method: 'DELETE' })).data;
   },
+  /** A sample file (workbook, Word document, receipt photo) with chosen content, made by the skills image. */
+  async sample(input: { kind: 'xlsx' | 'docx' | 'receipt'; rows?: Record<string, unknown>[]; markdown?: string; text?: string }) {
+    const d = (await request<{ data: { name: string; mime: string; base64: string } }>('/sim/samples', { method: 'POST', body: JSON.stringify(input) })).data;
+    const bin = atob(d.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return { name: d.name, mime: d.mime, bytes };
+  },
+
   /** A state a click can't reach (a process that died mid-step), built inside the current run. */
   async interruptedTask(input: { capability: string; objective: string; title?: string; args?: Record<string, unknown>; mid_send?: boolean; interruptions?: number }) {
     return (await request<{ data: { task_id: string; step_id: string; delivery_id: string | null } }>('/sim/fixtures', {
